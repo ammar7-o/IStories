@@ -1,173 +1,181 @@
+// App state
+let currentPage = 'home';
+let currentStory = null;
+let savedWords = JSON.parse(localStorage.getItem('savedWords')) || [];
+let theme = localStorage.getItem('theme') || 'light';
+let fontSize = 1.2; // rem
+let lineHeight = 1.8;
+let stories = []; // Will be loaded from external file
 
-        // App state
-        let currentPage = 'home';
-        let currentStory = null;
-        let savedWords = JSON.parse(localStorage.getItem('savedWords')) || [];
-        let theme = localStorage.getItem('theme') || 'light';
-        let fontSize = 1.2; // rem
-        let lineHeight = 1.8;
-        let stories = []; // Will be loaded from external file
+// DOM elements
+const pages = document.querySelectorAll('.page');
+const navLinks = document.querySelectorAll('.nav-link');
+const levelBtns = document.querySelectorAll('.level-btn');
+const storiesGrid = document.getElementById('storiesGrid');
+const storyText = document.getElementById('storyText');
+const dictionaryPopup = document.getElementById('dictionaryPopup');
+const vocabularyList = document.getElementById('vocabularyList');
+const themeToggle = document.getElementById('themeToggle');
+const backToStories = document.getElementById('backToStories');
+const fontSmaller = document.getElementById('fontSmaller');
+const fontNormal = document.getElementById('fontNormal');
+const fontLarger = document.getElementById('fontLarger');
+const lineSpacingBtn = document.getElementById('lineSpacing');
+const listenBtn = document.getElementById('listenBtn');
+const saveWordBtn = document.getElementById('saveWordBtn');
+const closePopup = document.getElementById('closePopup');
+const uploadStoryBtn = document.getElementById('uploadStoryBtn');
+const adminTabs = document.querySelectorAll('.admin-tab');
+const adminContents = document.querySelectorAll('.admin-content');
 
-     
+// Function to scroll to top of page
+function scrollToTop() {
+    window.scrollTo({
+        top: 0,
+        behavior: 'smooth'
+    });
+}
 
-        // DOM elements
-        const pages = document.querySelectorAll('.page');
-        const navLinks = document.querySelectorAll('.nav-link');
-        const levelBtns = document.querySelectorAll('.level-btn');
-        const storiesGrid = document.getElementById('storiesGrid');
-        const storyText = document.getElementById('storyText');
-        const dictionaryPopup = document.getElementById('dictionaryPopup');
-        const vocabularyList = document.getElementById('vocabularyList');
-        const themeToggle = document.getElementById('themeToggle');
-        const backToStories = document.getElementById('backToStories');
-        const fontSmaller = document.getElementById('fontSmaller');
-        const fontNormal = document.getElementById('fontNormal');
-        const fontLarger = document.getElementById('fontLarger');
-        const lineSpacingBtn = document.getElementById('lineSpacing');
-        const listenBtn = document.getElementById('listenBtn');
-        const saveWordBtn = document.getElementById('saveWordBtn');
-        const closePopup = document.getElementById('closePopup');
-        const practiceBtn = document.getElementById('practiceBtn');
-        const uploadStoryBtn = document.getElementById('uploadStoryBtn');
-        const adminTabs = document.querySelectorAll('.admin-tab');
-        const adminContents = document.querySelectorAll('.admin-content');
-
-        // Initialize the app
-        function init() {
-            // Wait for stories to be loaded from external file
-            if (typeof window.storiesData !== 'undefined') {
-                stories = window.storiesData.stories || window.storiesData;
-                renderStories();
-            } else {
-                // Fallback if external file fails
-                stories = [
-                    {
-                        id: 1,
-                        title: "Sample Story",
-                        level: "beginner",
-                        content: ["This is a sample story. Click on words like village or journey to see the dictionary."],
-                        wordCount: 10
-                    }
-                ];
-                renderStories();
+// Initialize the app
+function init() {
+    // Wait for stories to be loaded from external file
+    if (typeof window.storiesData !== 'undefined') {
+        stories = window.storiesData.stories || window.storiesData;
+        renderStories();
+    } else {
+        // Fallback if external file fails
+        stories = [
+            {
+                id: 1,
+                title: "Sample Story",
+                level: "beginner",
+                content: ["This is a sample story. Click on words like village or journey to see the dictionary."],
+                wordCount: 10
             }
+        ];
+        renderStories();
+    }
 
-            renderVocabulary();
-            updateStats();
-            applyTheme();
+    renderVocabulary();
+    updateStats();
+    applyTheme();
 
-            // Event listeners
-            setupEventListeners();
+    // Event listeners
+    setupEventListeners();
+}
+
+// Set up all event listeners
+function setupEventListeners() {
+    navLinks.forEach(link => {
+        link.addEventListener('click', (e) => {
+            e.preventDefault();
+            switchPage(link.dataset.page);
+            // Scroll to top when switching pages
+            scrollToTop();
+        });
+    });
+
+    levelBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            levelBtns.forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            renderStories(btn.dataset.level);
+        });
+    });
+
+    backToStories.addEventListener('click', () => {
+        switchPage('home');
+        scrollToTop();
+    });
+
+    themeToggle.addEventListener('click', toggleTheme);
+
+    fontSmaller.addEventListener('click', () => adjustFontSize(-0.1));
+    fontNormal.addEventListener('click', () => resetFontSize());
+    fontLarger.addEventListener('click', () => adjustFontSize(0.1));
+    lineSpacingBtn.addEventListener('click', toggleLineSpacing);
+    listenBtn.addEventListener('click', toggleAudio);
+
+    saveWordBtn.addEventListener('click', saveCurrentWord);
+    closePopup.addEventListener('click', hideDictionary);
+
+    uploadStoryBtn.addEventListener('click', uploadStory);
+
+    adminTabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            const tabId = tab.dataset.tab;
+            adminTabs.forEach(t => t.classList.remove('active'));
+            adminContents.forEach(c => c.classList.remove('active'));
+            tab.classList.add('active');
+            document.getElementById(`${tabId}Tab`).classList.add('active');
+        });
+    });
+
+    // Close dictionary when clicking outside
+    document.addEventListener('click', (e) => {
+        if (!dictionaryPopup.contains(e.target) && !e.target.classList.contains('word')) {
+            hideDictionary();
         }
+    });
 
-        // Set up all event listeners
-        function setupEventListeners() {
-            navLinks.forEach(link => {
-                link.addEventListener('click', (e) => {
-                    e.preventDefault();
-                    switchPage(link.dataset.page);
-                });
-            });
+    // Touch events for mobile long press
+    document.addEventListener('touchstart', handleTouchStart);
+    document.addEventListener('touchend', handleTouchEnd);
+}
 
-            levelBtns.forEach(btn => {
-                btn.addEventListener('click', () => {
-                    levelBtns.forEach(b => b.classList.remove('active'));
-                    btn.classList.add('active');
-                    renderStories(btn.dataset.level);
-                });
-            });
+// Touch handling for mobile
+let touchTimer;
+let touchTarget;
 
-            backToStories.addEventListener('click', () => switchPage('home'));
+function handleTouchStart(e) {
+    if (e.target.classList.contains('word')) {
+        touchTarget = e.target;
+        touchTimer = setTimeout(() => {
+            showSentenceTranslation(e.target);
+        }, 500);
+    }
+}
 
-            themeToggle.addEventListener('click', toggleTheme);
+function handleTouchEnd() {
+    clearTimeout(touchTimer);
+}
 
-            fontSmaller.addEventListener('click', () => adjustFontSize(-0.1));
-            fontNormal.addEventListener('click', () => resetFontSize());
-            fontLarger.addEventListener('click', () => adjustFontSize(0.1));
-            lineSpacingBtn.addEventListener('click', toggleLineSpacing);
-            listenBtn.addEventListener('click', toggleAudio);
+// Page navigation
+function switchPage(page) {
+    currentPage = page;
+    pages.forEach(p => p.classList.remove('active'));
+    document.getElementById(page).classList.add('active');
 
-            saveWordBtn.addEventListener('click', saveCurrentWord);
-            closePopup.addEventListener('click', hideDictionary);
-
-            practiceBtn.addEventListener('click', startPractice);
-            uploadStoryBtn.addEventListener('click', uploadStory);
-
-            adminTabs.forEach(tab => {
-                tab.addEventListener('click', () => {
-                    const tabId = tab.dataset.tab;
-                    adminTabs.forEach(t => t.classList.remove('active'));
-                    adminContents.forEach(c => c.classList.remove('active'));
-                    tab.classList.add('active');
-                    document.getElementById(`${tabId}Tab`).classList.add('active');
-                });
-            });
-
-            // Close dictionary when clicking outside
-            document.addEventListener('click', (e) => {
-                if (!dictionaryPopup.contains(e.target) && !e.target.classList.contains('word')) {
-                    hideDictionary();
-                }
-            });
-
-            // Touch events for mobile long press
-            document.addEventListener('touchstart', handleTouchStart);
-            document.addEventListener('touchend', handleTouchEnd);
+    navLinks.forEach(link => {
+        if (link.dataset.page === page) {
+            link.classList.add('active');
+        } else {
+            link.classList.remove('active');
         }
+    });
+}
 
-        // Touch handling for mobile
-        let touchTimer;
-        let touchTarget;
+// Render stories grid
+function renderStories(level = 'all') {
+    storiesGrid.innerHTML = '';
 
-        function handleTouchStart(e) {
-            if (e.target.classList.contains('word')) {
-                touchTarget = e.target;
-                touchTimer = setTimeout(() => {
-                    showSentenceTranslation(e.target);
-                }, 500);
-            }
-        }
+    const filteredStories = level === 'all'
+        ? stories
+        : stories.filter(story => story.level === level);
 
-        function handleTouchEnd() {
-            clearTimeout(touchTimer);
-        }
-
-        // Page navigation
-        function switchPage(page) {
-            currentPage = page;
-            pages.forEach(p => p.classList.remove('active'));
-            document.getElementById(page).classList.add('active');
-
-            navLinks.forEach(link => {
-                if (link.dataset.page === page) {
-                    link.classList.add('active');
-                } else {
-                    link.classList.remove('active');
-                }
-            });
-        }
-
-        // Render stories grid
-        function renderStories(level = 'all') {
-            storiesGrid.innerHTML = '';
-
-            const filteredStories = level === 'all'
-                ? stories
-                : stories.filter(story => story.level === level);
-
-            if (filteredStories.length === 0) {
-                storiesGrid.innerHTML = `
+    if (filteredStories.length === 0) {
+        storiesGrid.innerHTML = `
             <div style="grid-column: 1 / -1; text-align: center; padding: 40px;">
                 <p>No stories found for this level.</p>
             </div>
         `;
-                return;
-            }
+        return;
+    }
 
-            filteredStories.forEach(story => {
-                const storyCard = document.createElement('div');
-                storyCard.className = 'story-card';
-                storyCard.innerHTML = `
+    filteredStories.forEach(story => {
+        const storyCard = document.createElement('div');
+        storyCard.className = 'story-card';
+        storyCard.innerHTML = `
             <div class="story-image">
                 <i class="fas fa-book"></i>
             </div>
@@ -182,162 +190,169 @@
             </div>
         `;
 
-                storyCard.addEventListener('click', () => openStory(story));
-                storiesGrid.appendChild(storyCard);
-            });
-        }
+        storyCard.addEventListener('click', () => {
+            openStory(story);
+            // Scroll to top when story opens
+            setTimeout(() => {
+                scrollToTop();
+            }, 50); // Small delay to ensure content loads
+        });
+        storiesGrid.appendChild(storyCard);
+    });
+}
 
-        // Open a story with word selection
-        function openStory(story) {
-            currentStory = story;
-            document.getElementById('storyTitle').textContent = story.title;
+// Open a story with word selection
+function openStory(story) {
+    currentStory = story;
+    document.getElementById('storyTitle').textContent = story.title;
 
-            // Render story content with interactive words
-            storyText.innerHTML = '';
-            story.content.forEach(paragraph => {
-                const p = document.createElement('div');
-                p.className = 'paragraph';
+    // Render story content with interactive words
+    storyText.innerHTML = '';
+    story.content.forEach(paragraph => {
+        const p = document.createElement('div');
+        p.className = 'paragraph';
 
-                // Add paragraph controls
-                const controls = document.createElement('div');
-                controls.className = 'paragraph-controls';
-                controls.innerHTML = `<button class="control-btn"><i class="fas fa-volume-up"></i></button>`;
-                p.appendChild(controls);
+      
 
-                // Process text to make ALL words clickable, not just those in dictionary
-                const words = paragraph.split(' ');
-                const processedWords = words.map(word => {
-                    const cleanWord = word.replace(/[.,!?;:"]/g, '').toLowerCase();
-                    const isUnknown = savedWords.some(w => w.word === cleanWord && w.status === 'unknown');
-                    const isSaved = savedWords.some(w => w.word === cleanWord && w.status === 'saved');
+        // Process text to make ALL words clickable, not just those in dictionary
+        const words = paragraph.split(' ');
+        const processedWords = words.map(word => {
+            const cleanWord = word.replace(/[.,!?;:"]/g, '').toLowerCase();
+            const isUnknown = savedWords.some(w => w.word === cleanWord && w.status === 'unknown');
+            const isSaved = savedWords.some(w => w.word === cleanWord && w.status === 'saved');
 
-                    let className = 'word';
-                    if (isUnknown) className += ' unknown';
-                    if (isSaved) className += ' saved';
-                    if (!dictionary[cleanWord]) className += ' no-translation';
+            let className = 'word';
+            if (isUnknown) className += ' unknown';
+            if (isSaved) className += ' saved';
+            if (!dictionary[cleanWord]) className += ' no-translation';
 
-                    return `<span class="${className}" data-word="${cleanWord}">${word}</span>`;
-                });
+            return `<span class="${className}" data-word="${cleanWord}">${word}</span>`;
+        });
 
-                p.innerHTML += processedWords.join(' ');
-                storyText.appendChild(p);
-            });
+        p.innerHTML += processedWords.join(' ');
+        storyText.appendChild(p);
+    });
 
-            // Add word click listeners
-            setupWordInteractions();
+    // Add word click listeners
+    setupWordInteractions();
 
-            switchPage('stories');
-        }
+    switchPage('stories');
+    
+    // Scroll to top after page transition
+    setTimeout(() => {
+        scrollToTop();
+    }, 100);
+}
 
-        // Set up word interactions (click and long press)
-        function setupWordInteractions() {
-            document.querySelectorAll('.word').forEach(word => {
-                // Click for dictionary
-                word.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    const wordText = word.dataset.word;
+// Set up word interactions (click and long press)
+function setupWordInteractions() {
+    document.querySelectorAll('.word').forEach(word => {
+        // Click for dictionary
+        word.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const wordText = word.dataset.word;
 
-                    if (dictionary[wordText]) {
-                        // Word has translation - show dictionary
-                        showDictionary(wordText, word);
-                    } else {
-                        // Word has no translation - show message
-                        showNoTranslationMessage(wordText, word);
-                    }
-                });
+            if (dictionary[wordText]) {
+                // Word has translation - show dictionary
+                showDictionary(wordText, word);
+            } else {
+                // Word has no translation - show message
+                showNoTranslationMessage(wordText, word);
+            }
+        });
 
-                // Mouse events for desktop long press
-                let pressTimer;
-                word.addEventListener('mousedown', (e) => {
-                    pressTimer = setTimeout(() => {
-                        showSentenceTranslation(e.target);
-                    }, 500);
-                });
+        // Mouse events for desktop long press
+        let pressTimer;
+        word.addEventListener('mousedown', (e) => {
+            pressTimer = setTimeout(() => {
+                showSentenceTranslation(e.target);
+            }, 500);
+        });
 
-                word.addEventListener('mouseup', () => {
-                    clearTimeout(pressTimer);
-                });
+        word.addEventListener('mouseup', () => {
+            clearTimeout(pressTimer);
+        });
 
-                word.addEventListener('mouseleave', () => {
-                    clearTimeout(pressTimer);
-                });
+        word.addEventListener('mouseleave', () => {
+            clearTimeout(pressTimer);
+        });
 
-                // Context menu prevention
-                word.addEventListener('contextmenu', (e) => {
-                    e.preventDefault();
-                    showSentenceTranslation(e.target);
-                });
-            });
-        }
+        // Context menu prevention
+        word.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+            showSentenceTranslation(e.target);
+        });
+    });
+}
 
-        // Show dictionary popup for words with translations
-        function showDictionary(word, element) {
-            const wordData = dictionary[word];
-            if (!wordData) return;
+// Show dictionary popup for words with translations
+function showDictionary(word, element) {
+    const wordData = dictionary[word];
+    if (!wordData) return;
 
-            document.getElementById('popupWord').textContent = word;
-            document.getElementById('popupPos').textContent = wordData.pos;
-            document.getElementById('popupDefinition').textContent = wordData.definition;
-            document.getElementById('popupExample').textContent = wordData.example;
-            document.getElementById('popupTranslation').textContent = wordData.translation;
+    document.getElementById('popupWord').textContent = word;
+    document.getElementById('popupPos').textContent = wordData.pos;
+    document.getElementById('popupDefinition').textContent = wordData.definition;
+    document.getElementById('popupExample').textContent = wordData.example;
+    document.getElementById('popupTranslation').textContent = wordData.translation;
 
-            // Update save button text for words with translations
-            saveWordBtn.innerHTML = '<i class="fas fa-bookmark"></i> Save Word';
-            saveWordBtn.style.display = 'block';
+    // Update save button text for words with translations
+    saveWordBtn.innerHTML = '<i class="fas fa-bookmark"></i> Save Word';
+    saveWordBtn.style.display = 'block';
 
-            // Position the popup near the word
-            const rect = element.getBoundingClientRect();
-            dictionaryPopup.style.top = `${rect.bottom + window.scrollY + 10}px`;
-            dictionaryPopup.style.left = `${Math.max(10, rect.left + window.scrollX - 150)}px`;
-            dictionaryPopup.style.display = 'block';
+    // Position the popup near the word
+    const rect = element.getBoundingClientRect();
+    dictionaryPopup.style.top = `${rect.bottom + window.scrollY + 10}px`;
+    dictionaryPopup.style.left = `${Math.max(10, rect.left + window.scrollX - 150)}px`;
+    dictionaryPopup.style.display = 'block';
 
-            // Store current word for saving
-            dictionaryPopup.currentWord = word;
-            dictionaryPopup.currentElement = element;
-            dictionaryPopup.hasTranslation = true;
-        }
+    // Store current word for saving
+    dictionaryPopup.currentWord = word;
+    dictionaryPopup.currentElement = element;
+    dictionaryPopup.hasTranslation = true;
+}
 
-        // Show message for words without translations
-        function showNoTranslationMessage(word, element) {
-            // Update popup content for no translation
-            document.getElementById('popupWord').textContent = word;
-            document.getElementById('popupPos').textContent = "No data available";
-            document.getElementById('popupDefinition').textContent = "This word is not yet in our dictionary.";
-            document.getElementById('popupExample').textContent = "We're constantly adding new words to our database.";
-            document.getElementById('popupTranslation').textContent = "لا توجد ترجمة متاحة";
+// Show message for words without translations
+function showNoTranslationMessage(word, element) {
+    // Update popup content for no translation
+    document.getElementById('popupWord').textContent = word;
+    document.getElementById('popupPos').textContent = "No data available";
+    document.getElementById('popupDefinition').textContent = "This word is not yet in our dictionary.";
+    document.getElementById('popupExample').textContent = "We're constantly adding new words to our database.";
+    document.getElementById('popupTranslation').textContent = "لا توجد ترجمة متاحة";
 
-            // Update save button text for words without translations
-            saveWordBtn.innerHTML = '<i class="fas fa-bookmark"></i> Save Word (No Translation)';
-            saveWordBtn.style.display = 'block';
+    // Update save button text for words without translations
+    saveWordBtn.innerHTML = '<i class="fas fa-bookmark"></i> Save Word (No Translation)';
+    saveWordBtn.style.display = 'block';
 
-            // Position the popup near the word
-            const rect = element.getBoundingClientRect();
-            dictionaryPopup.style.top = `${rect.bottom + window.scrollY + 10}px`;
-            dictionaryPopup.style.left = `${Math.max(10, rect.left + window.scrollX - 150)}px`;
-            dictionaryPopup.style.display = 'block';
+    // Position the popup near the word
+    const rect = element.getBoundingClientRect();
+    dictionaryPopup.style.top = `${rect.bottom + window.scrollY + 10}px`;
+    dictionaryPopup.style.left = `${Math.max(10, rect.left + window.scrollX - 150)}px`;
+    dictionaryPopup.style.display = 'block';
 
-            // Store current word
-            dictionaryPopup.currentWord = word;
-            dictionaryPopup.currentElement = element;
-            dictionaryPopup.hasTranslation = false;
-        }
+    // Store current word
+    dictionaryPopup.currentWord = word;
+    dictionaryPopup.currentElement = element;
+    dictionaryPopup.hasTranslation = false;
+}
 
-        // Hide dictionary popup
-        function hideDictionary() {
-            dictionaryPopup.style.display = 'none';
-            dictionaryPopup.currentWord = null;
-            dictionaryPopup.currentElement = null;
-            dictionaryPopup.hasTranslation = false;
-        }
+// Hide dictionary popup
+function hideDictionary() {
+    dictionaryPopup.style.display = 'none';
+    dictionaryPopup.currentWord = null;
+    dictionaryPopup.currentElement = null;
+    dictionaryPopup.hasTranslation = false;
+}
 
-        // Show sentence translation
-        function showSentenceTranslation(element) {
-            const sentence = element.closest('.paragraph').textContent;
+// Show sentence translation
+function showSentenceTranslation(element) {
+    const sentence = element.closest('.paragraph').textContent;
 
-            // Create a translation popup
-            const translationPopup = document.createElement('div');
-            translationPopup.className = 'dictionary-popup';
-            translationPopup.innerHTML = `
+    // Create a translation popup
+    const translationPopup = document.createElement('div');
+    translationPopup.className = 'dictionary-popup';
+    translationPopup.innerHTML = `
         <div class="dictionary-header">
             <div class="dictionary-word">Sentence Translation</div>
             <button class="close-popup"><i class="fas fa-times"></i></button>
@@ -349,95 +364,95 @@
         </div>
     `;
 
-            // Position near the sentence
-            const rect = element.getBoundingClientRect();
-            translationPopup.style.top = `${rect.bottom + window.scrollY + 10}px`;
-            translationPopup.style.left = `${Math.max(10, rect.left + window.scrollX)}px`;
+    // Position near the sentence
+    const rect = element.getBoundingClientRect();
+    translationPopup.style.top = `${rect.bottom + window.scrollY + 10}px`;
+    translationPopup.style.left = `${Math.max(10, rect.left + window.scrollX)}px`;
 
-            document.body.appendChild(translationPopup);
+    document.body.appendChild(translationPopup);
 
-            // Add close functionality
-            translationPopup.querySelectorAll('.close-popup').forEach(btn => {
-                btn.addEventListener('click', () => {
-                    document.body.removeChild(translationPopup);
-                });
-            });
+    // Add close functionality
+    translationPopup.querySelectorAll('.close-popup').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.body.removeChild(translationPopup);
+        });
+    });
 
-            // Auto-close after 5 seconds
-            setTimeout(() => {
-                if (document.body.contains(translationPopup)) {
-                    document.body.removeChild(translationPopup);
-                }
-            }, 5000);
+    // Auto-close after 5 seconds
+    setTimeout(() => {
+        if (document.body.contains(translationPopup)) {
+            document.body.removeChild(translationPopup);
+        }
+    }, 5000);
+}
+
+// Save current word to vocabulary (works for both words with and without translations)
+function saveCurrentWord() {
+    const word = dictionaryPopup.currentWord;
+    if (!word) return;
+
+    const hasTranslation = dictionaryPopup.hasTranslation;
+    const wordData = dictionary[word];
+
+    // Check if word is already saved
+    const existingIndex = savedWords.findIndex(w => w.word === word);
+
+    if (existingIndex === -1) {
+        // Create new word entry
+        const newWord = {
+            word: word,
+            status: 'saved',
+            added: new Date().toISOString(),
+            nextReview: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // Tomorrow
+            story: currentStory ? currentStory.title : 'Unknown',
+            hasTranslation: hasTranslation
+        };
+
+        // Add translation data if available
+        if (hasTranslation && wordData) {
+            newWord.translation = wordData.translation;
+            newWord.definition = wordData.definition;
+            newWord.example = wordData.example;
+            newWord.pos = wordData.pos;
+        } else {
+            // For words without translations
+            newWord.translation = "No translation available";
+            newWord.definition = "This word is not yet in our dictionary";
+            newWord.example = "We're working on adding more words to our database";
+            newWord.pos = "unknown";
         }
 
-        // Save current word to vocabulary (works for both words with and without translations)
-        function saveCurrentWord() {
-            const word = dictionaryPopup.currentWord;
-            if (!word) return;
+        savedWords.push(newWord);
+    } else {
+        savedWords[existingIndex].status = 'saved';
+        savedWords[existingIndex].hasTranslation = hasTranslation;
+    }
 
-            const hasTranslation = dictionaryPopup.hasTranslation;
-            const wordData = dictionary[word];
+    localStorage.setItem('savedWords', JSON.stringify(savedWords));
+    renderVocabulary();
+    updateStats();
+    hideDictionary();
 
-            // Check if word is already saved
-            const existingIndex = savedWords.findIndex(w => w.word === word);
+    // Update word appearance in the story
+    if (dictionaryPopup.currentElement) {
+        dictionaryPopup.currentElement.classList.add('saved');
+        dictionaryPopup.currentElement.classList.remove('unknown');
+    }
 
-            if (existingIndex === -1) {
-                // Create new word entry
-                const newWord = {
-                    word: word,
-                    status: 'saved',
-                    added: new Date().toISOString(),
-                    nextReview: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // Tomorrow
-                    story: currentStory ? currentStory.title : 'Unknown',
-                    hasTranslation: hasTranslation
-                };
+    // Show confirmation message
+    const message = hasTranslation
+        ? `"${word}" saved to vocabulary with translation!`
+        : `"${word}" saved to vocabulary (translation will be added later)`;
 
-                // Add translation data if available
-                if (hasTranslation && wordData) {
-                    newWord.translation = wordData.translation;
-                    newWord.definition = wordData.definition;
-                    newWord.example = wordData.example;
-                    newWord.pos = wordData.pos;
-                } else {
-                    // For words without translations
-                    newWord.translation = "No translation available";
-                    newWord.definition = "This word is not yet in our dictionary";
-                    newWord.example = "We're working on adding more words to our database";
-                    newWord.pos = "unknown";
-                }
+    showNotification(message);
+}
 
-                savedWords.push(newWord);
-            } else {
-                savedWords[existingIndex].status = 'saved';
-                savedWords[existingIndex].hasTranslation = hasTranslation;
-            }
-
-            localStorage.setItem('savedWords', JSON.stringify(savedWords));
-            renderVocabulary();
-            updateStats();
-            hideDictionary();
-
-            // Update word appearance in the story
-            if (dictionaryPopup.currentElement) {
-                dictionaryPopup.currentElement.classList.add('saved');
-                dictionaryPopup.currentElement.classList.remove('unknown');
-            }
-
-            // Show confirmation message
-            const message = hasTranslation
-                ? `"${word}" saved to vocabulary with translation!`
-                : `"${word}" saved to vocabulary (translation will be added later)`;
-
-            showNotification(message);
-        }
-
-        // Show temporary notification
-        function showNotification(message) {
-            const notification = document.createElement('div');
-            notification.className = 'notification';
-            notification.textContent = message;
-            notification.style.cssText = `
+// Show temporary notification
+function showNotification(message) {
+    const notification = document.createElement('div');
+    notification.className = 'notification';
+    notification.textContent = message;
+    notification.style.cssText = `
         position: fixed;
         top: 20px;
         right: 20px;
@@ -450,47 +465,47 @@
         font-weight: 500;
     `;
 
-            document.body.appendChild(notification);
+    document.body.appendChild(notification);
 
-            // Remove after 3 seconds
-            setTimeout(() => {
-                if (document.body.contains(notification)) {
-                    document.body.removeChild(notification);
-                }
-            }, 3000);
+    // Remove after 3 seconds
+    setTimeout(() => {
+        if (document.body.contains(notification)) {
+            document.body.removeChild(notification);
         }
+    }, 3000);
+}
 
-        // Render vocabulary list
-        function renderVocabulary() {
-            vocabularyList.innerHTML = '';
+// Render vocabulary list
+function renderVocabulary() {
+    vocabularyList.innerHTML = '';
 
-            if (savedWords.length === 0) {
-                vocabularyList.innerHTML = `
+    if (savedWords.length === 0) {
+        vocabularyList.innerHTML = `
             <div class="vocabulary-item" style="justify-content: center; padding: 40px;">
                 <p>No words saved yet. Click on words in stories to add them to your vocabulary.</p>
             </div>
         `;
-                return;
-            }
+        return;
+    }
 
-            savedWords.forEach((word, index) => {
-                const item = document.createElement('div');
-                item.className = 'vocabulary-item';
+    savedWords.forEach((word, index) => {
+        const item = document.createElement('div');
+        item.className = 'vocabulary-item';
 
-                // Add warning badge for words without translations
-                const translationBadge = !word.hasTranslation
-                    ? `<span class="no-translation-badge" style="background: #f59e0b; color: white; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; margin-left: 8px;">No Translation</span>`
-                    : '';
+        // Add warning badge for words without translations
+        const translationBadge = !word.hasTranslation
+            ? `<span class="no-translation-badge" style="background: #f59e0b; color: white; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; margin-left: 8px;">No Translation</span>`
+            : '';
 
-                item.innerHTML = `
+        item.innerHTML = `
             <div class="word-info">
                 <div class="word-main">
                     <span class="word-text">${word.word}</span>
-                    <span class="word-pos">${word.pos}</span>
+                <!--    <span class="word-pos">${word.pos}</span> -->
                     <span class="word-translation">${word.translation}</span>
                     ${translationBadge}
                 </div>
-                <div class="word-example">${word.example}</div>
+             <!--  <div class="word-example">${word.example}</div> -->
                 ${word.story ? `<div class="word-story" style="font-size: 0.8rem; color: var(--text-light); margin-top: 5px;">From: ${word.story}</div>` : ''}
             </div>
             <div class="word-actions">
@@ -503,188 +518,178 @@
             </div>
         `;
 
-                vocabularyList.appendChild(item);
-            });
+        vocabularyList.appendChild(item);
+    });
 
-            // Add event listeners for vocabulary actions
-            document.querySelectorAll('.word-actions button').forEach(button => {
-                button.addEventListener('click', (e) => {
-                    const index = parseInt(e.currentTarget.dataset.index);
-                    if (e.currentTarget.querySelector('.fa-check')) {
-                        markAsKnown(index);
-                    } else if (e.currentTarget.querySelector('.fa-trash')) {
-                        deleteWord(index);
-                    }
-                });
-            });
-        }
-
-        // Mark word as known
-        function markAsKnown(index) {
-            savedWords[index].status = 'known';
-            savedWords[index].mastered = new Date().toISOString();
-            localStorage.setItem('savedWords', JSON.stringify(savedWords));
-            renderVocabulary();
-            updateStats();
-        }
-
-        // Delete word from vocabulary
-        function deleteWord(index) {
-            const word = savedWords[index].word;
-            savedWords.splice(index, 1);
-            localStorage.setItem('savedWords', JSON.stringify(savedWords));
-            renderVocabulary();
-            updateStats();
-
-            // Show deletion confirmation
-            showNotification(`"${word}" removed from vocabulary`);
-        }
-
-        // Update vocabulary statistics
-        function updateStats() {
-            document.getElementById('totalWords').textContent = savedWords.length;
-            document.getElementById('masteredWords').textContent = savedWords.filter(w => w.status === 'known').length;
-
-            const dueForReview = savedWords.filter(w => {
-                if (!w.nextReview) return false;
-                return new Date(w.nextReview) <= new Date();
-            }).length;
-
-            document.getElementById('practiceDue').textContent = dueForReview;
-
-            // Count words without translations
-            const wordsWithoutTranslation = savedWords.filter(w => !w.hasTranslation).length;
-
-            // Simple streak calculation (for demo)
-            const streak = Math.min(7, savedWords.length);
-            document.getElementById('readingStreak').textContent = streak;
-        }
-
-        // Toggle theme
-        function toggleTheme() {
-            theme = theme === 'light' ? 'dark' : 'light';
-            applyTheme();
-            localStorage.setItem('theme', theme);
-        }
-
-        // Apply current theme
-        function applyTheme() {
-            if (theme === 'dark') {
-                document.body.classList.add('dark-mode');
-                themeToggle.innerHTML = '<i class="fas fa-sun"></i>';
-            } else {
-                document.body.classList.remove('dark-mode');
-                themeToggle.innerHTML = '<i class="fas fa-moon"></i>';
+    // Add event listeners for vocabulary actions
+    document.querySelectorAll('.word-actions button').forEach(button => {
+        button.addEventListener('click', (e) => {
+            const index = parseInt(e.currentTarget.dataset.index);
+            if (e.currentTarget.querySelector('.fa-check')) {
+                markAsKnown(index);
+            } else if (e.currentTarget.querySelector('.fa-trash')) {
+                deleteWord(index);
             }
-        }
+        });
+    });
+}
 
-        // Adjust font size
-        function adjustFontSize(change) {
-            fontSize += change;
-            fontSize = Math.max(1, Math.min(2, fontSize)); // Limit between 1rem and 2rem
-            storyText.style.fontSize = `${fontSize}rem`;
+// Mark word as known
+function markAsKnown(index) {
+    savedWords[index].status = 'known';
+    savedWords[index].mastered = new Date().toISOString();
+    localStorage.setItem('savedWords', JSON.stringify(savedWords));
+    renderVocabulary();
+    updateStats();
+}
 
-            // Update active button
-            fontSmaller.classList.toggle('active', fontSize < 1.2);
-            fontNormal.classList.toggle('active', fontSize === 1.2);
-            fontLarger.classList.toggle('active', fontSize > 1.2);
-        }
+// Delete word from vocabulary
+function deleteWord(index) {
+    const word = savedWords[index].word;
+    savedWords.splice(index, 1);
+    localStorage.setItem('savedWords', JSON.stringify(savedWords));
+    renderVocabulary();
+    updateStats();
 
-        // Reset font size
-        function resetFontSize() {
-            fontSize = 1.2;
-            storyText.style.fontSize = `${fontSize}rem`;
+    // Show deletion confirmation
+    showNotification(`"${word}" removed from vocabulary`);
+}
 
-            fontSmaller.classList.remove('active');
-            fontNormal.classList.add('active');
-            fontLarger.classList.remove('active');
-        }
+// Update vocabulary statistics
+function updateStats() {
+    document.getElementById('totalWords').textContent = savedWords.length;
+    document.getElementById('masteredWords').textContent = savedWords.filter(w => w.status === 'known').length;
 
-        // Toggle line spacing
-        function toggleLineSpacing() {
-            lineHeight = lineHeight === 1.8 ? 2.2 : 1.8;
-            storyText.style.lineHeight = lineHeight;
-            lineSpacingBtn.classList.toggle('active', lineHeight === 2.2);
-        }
+    const dueForReview = savedWords.filter(w => {
+        if (!w.nextReview) return false;
+        return new Date(w.nextReview) <= new Date();
+    }).length;
 
-        // Toggle audio (text-to-speech)
-        function toggleAudio() {
-            // In a real app, this would use the Web Speech API
-            alert('Text-to-speech would play here. This feature requires a real TTS API implementation.');
-            listenBtn.classList.toggle('active');
-        }
+    document.getElementById('practiceDue').textContent = dueForReview;
 
-        // Start vocabulary practice
-        function startPractice() {
-            if (savedWords.length === 0) {
-                alert('Add some words to your vocabulary first!');
-                return;
-            }
+    // Count words without translations
+    const wordsWithoutTranslation = savedWords.filter(w => !w.hasTranslation).length;
 
-            alert('Starting flashcard practice with spaced repetition. This would open a practice interface in a real implementation.');
-        }
+    // Simple streak calculation (for demo)
+    const streak = Math.min(7, savedWords.length);
+    document.getElementById('readingStreak').textContent = streak;
+}
 
-        // Upload a new story (demo functionality)
-        function uploadStory() {
-            const title = document.getElementById('adminStoryTitle').value;
-            const level = document.getElementById('storyLevel').value;
-            const content = document.getElementById('storyContent').value;
+// Toggle theme
+function toggleTheme() {
+    theme = theme === 'light' ? 'dark' : 'light';
+    applyTheme();
+    localStorage.setItem('theme', theme);
+}
 
-            if (!title || !content) {
-                alert('Please fill in all required fields');
-                return;
-            }
+// Apply current theme
+function applyTheme() {
+    if (theme === 'dark') {
+        document.body.classList.add('dark-mode');
+        themeToggle.innerHTML = '<i class="fas fa-sun"></i>';
+    } else {
+        document.body.classList.remove('dark-mode');
+        themeToggle.innerHTML = '<i class="fas fa-moon"></i>';
+    }
+}
 
-            // In a real app, this would send to a backend
-            alert(`Story "${title}" uploaded successfully! This would be saved to a database in a real implementation.`);
+// Adjust font size
+function adjustFontSize(change) {
+    fontSize += change;
+    fontSize = Math.max(1, Math.min(2, fontSize)); // Limit between 1rem and 2rem
+    storyText.style.fontSize = `${fontSize}rem`;
 
-            // Clear form
-            document.getElementById('adminStoryTitle').value = '';
-            document.getElementById('storyContent').value = '';
-        }
+    // Update active button
+    fontSmaller.classList.toggle('active', fontSize < 1.2);
+    fontNormal.classList.toggle('active', fontSize === 1.2);
+    fontLarger.classList.toggle('active', fontSize > 1.2);
+}
 
-        // Initialize the app when DOM is loaded
-        document.addEventListener('DOMContentLoaded', init);
-        // Add this function to render cover images
-        function renderStoryCover(story) {
-            if (!story.cover) {
-                // Default book icon if no cover specified
-                return '<i class="fas fa-book"></i>';
-            }
+// Reset font size
+function resetFontSize() {
+    fontSize = 1.2;
+    storyText.style.fontSize = `${fontSize}rem`;
 
-            if (story.coverType === 'emoji') {
-                return `<div class="story-emoji">${story.cover}</div>`;
-            } else if (story.coverType === 'image') {
-                return `<img src="${story.cover}" alt="${story.title}" class="story-image">`;
-            } else if (story.coverType === 'icon') {
-                return `<i class="${story.cover}"></i>`;
-            } else {
-                // Default to emoji if type not specified
-                return `<div class="story-emoji">${story.cover}</div>`;
-            }
-        }
+    fontSmaller.classList.remove('active');
+    fontNormal.classList.add('active');
+    fontLarger.classList.remove('active');
+}
 
-        // Update the renderStories function to use covers
-        function renderStories(level = 'all') {
-            storiesGrid.innerHTML = '';
+// Toggle line spacing
+function toggleLineSpacing() {
+    lineHeight = lineHeight === 1.8 ? 2.2 : 1.8;
+    storyText.style.lineHeight = lineHeight;
+    lineSpacingBtn.classList.toggle('active', lineHeight === 2.2);
+}
 
-            const filteredStories = level === 'all'
-                ? stories
-                : stories.filter(story => story.level === level);
+// Toggle audio (text-to-speech)
+function toggleAudio() {
+    // In a real app, this would use the Web Speech API
+    alert('Text-to-speech would play here. This feature requires a real TTS API implementation.');
+    listenBtn.classList.toggle('active');
+}
 
-            if (filteredStories.length === 0) {
-                storiesGrid.innerHTML = `
+
+
+// Upload a new story (demo functionality)
+function uploadStory() {
+    const title = document.getElementById('adminStoryTitle').value;
+    const level = document.getElementById('storyLevel').value;
+    const content = document.getElementById('storyContent').value;
+
+    if (!title || !content) {
+        alert('Please fill in all required fields');
+        return;
+    }
+
+    // In a real app, this would send to a backend
+    alert(`Story "${title}" uploaded successfully! This would be saved to a database in a real implementation.`);
+
+    // Clear form
+    document.getElementById('adminStoryTitle').value = '';
+    document.getElementById('storyContent').value = '';
+}
+
+// Function to render cover images
+function renderStoryCover(story) {
+    if (!story.cover) {
+        // Default book icon if no cover specified
+        return '<i class="fas fa-book"></i>';
+    }
+
+    if (story.coverType === 'emoji') {
+        return `<div class="story-emoji">${story.cover}</div>`;
+    } else if (story.coverType === 'image') {
+        return `<img src="${story.cover}" alt="${story.title}" class="story-image">`;
+    } else if (story.coverType === 'icon') {
+        return `<i class="${story.cover}"></i>`;
+    } else {
+        // Default to emoji if type not specified
+        return `<div class="story-emoji">${story.cover}</div>`;
+    }
+}
+
+// Update the renderStories function to use covers
+function renderStories(level = 'all') {
+    storiesGrid.innerHTML = '';
+
+    const filteredStories = level === 'all'
+        ? stories
+        : stories.filter(story => story.level === level);
+
+    if (filteredStories.length === 0) {
+        storiesGrid.innerHTML = `
             <div style="grid-column: 1 / -1; text-align: center; padding: 40px;">
                 <p>No stories found for this level.</p>
             </div>
         `;
-                return;
-            }
+        return;
+    }
 
-            filteredStories.forEach(story => {
-                const storyCard = document.createElement('div');
-                storyCard.className = 'story-card';
-                storyCard.innerHTML = `
+    filteredStories.forEach(story => {
+        const storyCard = document.createElement('div');
+        storyCard.className = 'story-card';
+        storyCard.innerHTML = `
             <div class="story-image">
                 ${renderStoryCover(story)}
             </div>
@@ -699,8 +704,135 @@
             </div>
         `;
 
-                storyCard.addEventListener('click', () => openStory(story));
-                storiesGrid.appendChild(storyCard);
-            });
+        storyCard.addEventListener('click', () => {
+            openStory(story);
+            // Scroll to top when story opens
+            setTimeout(() => {
+                scrollToTop();
+            }, 50);
+        });
+        storiesGrid.appendChild(storyCard);
+    });
+}
+
+// Initialize the app when DOM is loaded
+document.addEventListener('DOMContentLoaded', init);
+
+
+
+
+// Export vocabulary as CSV file
+function exportVocabulary() {
+    if (savedWords.length === 0) {
+        showNotification('No vocabulary to export!');
+        return;
+    }
+
+    // Create CSV content with headers
+    const headers = ['Word', 'Translation', 'Status', 'Story', 'Date Added'];
+    
+    // Create CSV rows
+    const csvRows = [
+        headers.join(','), // Add headers first
+        ...savedWords.map(word => {
+            return [
+                `"${word.word || ''}"`,
+                `"${(word.translation || '').replace(/"/g, '""')}"`, // Escape quotes in CSV
+                `"${word.status || ''}"`,
+                `"${(word.story || '').replace(/"/g, '""')}"`,
+                `"${word.added ? new Date(word.added).toLocaleDateString('en-US') : ''}"`
+            ].join(',');
+        })
+    ];
+
+    // Join rows with newlines
+    const csvString = csvRows.join('\n');
+    
+    // Create a Blob (file-like object)
+    const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
+    
+    // Create download URL
+    const url = URL.createObjectURL(blob);
+    
+    // Create invisible download link
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    
+    // Create filename with current date
+    const date = new Date();
+    const formattedDate = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}-${date.getDate().toString().padStart(2, '0')}`;
+    link.setAttribute('download', `my_vocabulary_${formattedDate}.csv`);
+    
+    // Hide the link and trigger download
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    
+    // Clean up
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    
+    // Show success message
+    showNotification(`Vocabulary exported successfully! (${savedWords.length} words)`);
+}
+
+// Helper function to format date
+function formatDateForExport(dateString) {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric'
+    });
+}
+
+// Simple notification function
+function showNotification(message) {
+    // Create notification element
+    const notification = document.createElement('div');
+    notification.className = 'notification';
+    notification.textContent = message;
+    notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: #10b981;
+        color: white;
+        padding: 12px 20px;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        z-index: 1000;
+        font-weight: 500;
+        animation: slideIn 0.3s ease;
+    `;
+    
+    // Add to page
+    document.body.appendChild(notification);
+    
+    // Remove after 3 seconds
+    setTimeout(() => {
+        if (document.body.contains(notification)) {
+            notification.style.animation = 'slideOut 0.3s ease';
+            setTimeout(() => {
+                if (document.body.contains(notification)) {
+                    document.body.removeChild(notification);
+                }
+            }, 300);
         }
-   
+    }, 3000);
+}
+
+// Add this CSS for animations
+const style = document.createElement('style');
+style.textContent = `
+    @keyframes slideIn {
+        from { transform: translateX(100%); opacity: 0; }
+        to { transform: translateX(0); opacity: 1; }
+    }
+    @keyframes slideOut {
+        from { transform: translateX(0); opacity: 1; }
+        to { transform: translateX(100%); opacity: 0; }
+    }
+`;
+document.head.appendChild(style);

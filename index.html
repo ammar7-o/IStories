@@ -10,7 +10,7 @@
 </head>
 
 <body>
-    <header>
+    <header id="top">
         <div class="container">
             <div class="header-content">
                 <div class="logo">
@@ -88,8 +88,8 @@
             <div id="vocabulary" class="page">
                 <div class="vocabulary-header">
                     <h2>My Vocabulary</h2>
-                    <button class="btn btn-primary" id="practiceBtn">
-                        <i class="fas fa-brain"></i> Practice with Flashcards
+                    <button onclick="exportVocabulary()" class="btn btn-primary" id="exportBtn">
+                        <i class="fas fa-brain"></i> Export
                     </button>
                 </div>
 
@@ -168,22 +168,22 @@
     <!-- Dictionary Popup -->
     <div class="dictionary-popup" id="dictionaryPopup">
         <div class="dictionary-header">
-            <div class="dictionary-word" id="popupWord">Word</div>
+            <div class="dictionary-word"   style="margin-right: 10px;" id="popupWord">Word</div>
             <button class="close-popup" id="closePopup">
                 <i class="fas fa-times"></i>
             </button>
         </div>
-        <div class="dictionary-pos" id="popupPos">noun</div>
-        <div class="dictionary-definition" id="popupDefinition">Definition will appear here</div>
-        <div class="dictionary-example" id="popupExample">Example sentence will appear here</div>
-        <div class="dictionary-translation" id="popupTranslation">Translation will appear here</div>
+        <div class="dictionary-pos" style="display: none;" id="popupPos">noun</div>
+        <div class="dictionary-definition"  style="display: none;" id="popupDefinition">Definition will appear here</div>
+        <div class="dictionary-example"  style="display: none;" id="popupExample">Example sentence will appear here</div>
+        <div class="dictionary-translation"  style="font-size: 20px;" id="popupTranslation">Translation will appear here</div>
         <div class="dictionary-actions">
             <button class="save-word" id="saveWordBtn">
                 <i class="fas fa-bookmark"></i> Save Word
             </button>
-            <button class="close-popup">
+            <!-- <button class="close-popup">
                 <i class="fas fa-times"></i> Close
-            </button>
+            </button> -->
         </div>
     </div>
 
@@ -202,10 +202,10 @@
         </div>
     </footer>
     <!-- stories -->
-    <script src="stories.js"></script>
-       
+    <script src="stories/main.js"></script>
+       <script src="stories/more.js"></script>
 
-    <script src="Dictionary.js"></script>
+    <script src="Dictionarys/main.js"></script>
     <script src="script.js"></script>
 </body>
 

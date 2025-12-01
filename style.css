@@ -187,6 +187,8 @@
             justify-content: center;
             gap: 15px;
             margin-bottom: 30px;
+            overflow-x: scroll;
+            padding: 5px;
         }
 
         .level-btn {
@@ -703,3 +705,15 @@
             }
         }
  
+
+
+
+
+
+
+
+
+
+
+
+        
