@@ -7,6 +7,9 @@ let fontSize = 1.2; // rem
 let lineHeight = 1.8;
 let stories = []; // Will be loaded from external file
 
+// Store current word for saving
+let currentWordData = null;
+
 // DOM elements
 const pages = document.querySelectorAll('.page');
 const navLinks = document.querySelectorAll('.nav-link');
@@ -24,9 +27,6 @@ const lineSpacingBtn = document.getElementById('lineSpacing');
 const listenBtn = document.getElementById('listenBtn');
 const saveWordBtn = document.getElementById('saveWordBtn');
 const closePopup = document.getElementById('closePopup');
-const uploadStoryBtn = document.getElementById('uploadStoryBtn');
-const adminTabs = document.querySelectorAll('.admin-tab');
-const adminContents = document.querySelectorAll('.admin-content');
 
 // Function to scroll to top of page
 function scrollToTop() {
@@ -47,10 +47,12 @@ function init() {
         stories = [
             {
                 id: 1,
-                title: "Sample Story",
+                title: "The Mysterious Island",
                 level: "beginner",
-                content: ["This is a sample story. Click on words like village or journey to see the dictionary."],
-                wordCount: 10
+                cover: "🏝️",
+                coverType: "emoji",
+                wordCount: 350,
+                content: ["This is a sample story. Click on words like village or journey to see the dictionary."]
             }
         ];
         renderStories();
@@ -99,18 +101,6 @@ function setupEventListeners() {
     saveWordBtn.addEventListener('click', saveCurrentWord);
     closePopup.addEventListener('click', hideDictionary);
 
-    uploadStoryBtn.addEventListener('click', uploadStory);
-
-    adminTabs.forEach(tab => {
-        tab.addEventListener('click', () => {
-            const tabId = tab.dataset.tab;
-            adminTabs.forEach(t => t.classList.remove('active'));
-            adminContents.forEach(c => c.classList.remove('active'));
-            tab.classList.add('active');
-            document.getElementById(`${tabId}Tab`).classList.add('active');
-        });
-    });
-
     // Close dictionary when clicking outside
     document.addEventListener('click', (e) => {
         if (!dictionaryPopup.contains(e.target) && !e.target.classList.contains('word')) {
@@ -121,6 +111,13 @@ function setupEventListeners() {
     // Touch events for mobile long press
     document.addEventListener('touchstart', handleTouchStart);
     document.addEventListener('touchend', handleTouchEnd);
+
+    // CTA button
+    document.querySelector('.cta-button').addEventListener('click', () => {
+        if (stories.length > 0) {
+            openStoryInNewPage(stories[0].id);
+        }
+    });
 }
 
 // Touch handling for mobile
@@ -155,7 +152,45 @@ function switchPage(page) {
     });
 }
 
-// Render stories grid
+// NEW FUNCTION: Open story in a new page WITH story title
+function openStoryInNewPage(storyId) {
+    // Find the story in the stories array
+    const story = stories.find(s => s.id == storyId);
+    
+    if (story) {
+        // Store the story data in localStorage before redirecting
+        localStorage.setItem('currentReadingStory', JSON.stringify({
+            id: story.id,
+            title: story.title,
+            level: story.level
+        }));
+        
+        // Create a new page URL with the story ID
+        const storyPage = 'reader/index.html?id=' + storyId;
+        window.location.href = storyPage;
+    }
+}
+
+// Function to render cover images
+function renderStoryCover(story) {
+    if (!story.cover) {
+        // Default book icon if no cover specified
+        return '<i class="fas fa-book"></i>';
+    }
+
+    if (story.coverType === 'emoji') {
+        return `<div class="story-emoji">${story.cover}</div>`;
+    } else if (story.coverType === 'image') {
+        return `<img src="${story.cover}" alt="${story.title}" class="story-image">`;
+    } else if (story.coverType === 'icon') {
+        return `<i class="${story.cover}"></i>`;
+    } else {
+        // Default to emoji if type not specified
+        return `<div class="story-emoji">${story.cover}</div>`;
+    }
+}
+
+// Render stories grid with clickable cards
 function renderStories(level = 'all') {
     storiesGrid.innerHTML = '';
 
@@ -175,33 +210,33 @@ function renderStories(level = 'all') {
     filteredStories.forEach(story => {
         const storyCard = document.createElement('div');
         storyCard.className = 'story-card';
+        storyCard.dataset.storyId = story.id; // Add story ID as data attribute
+        
         storyCard.innerHTML = `
             <div class="story-image">
-                <i class="fas fa-book"></i>
+                ${renderStoryCover(story)}
             </div>
             <div class="story-content">
                 <span class="story-level ${story.level}">${story.level.charAt(0).toUpperCase() + story.level.slice(1)}</span>
                 <h3 class="story-title">${story.title}</h3>
                 <p>${story.content[0].substring(0, 100)}...</p>
                 <div class="story-meta">
-                    <span><i class="fas fa-font"></i> ${story.wordCount} words</span>
-                    <span><i class="fas fa-clock"></i> ${Math.ceil(story.wordCount / 200)} min read</span>
+                    <span><i class="fas fa-font"></i> ${story.wordCount || 'N/A'} words</span>
+                    <span><i class="fas fa-clock"></i> ${Math.ceil((story.wordCount || 100) / 200)} min read</span>
                 </div>
             </div>
         `;
 
+        // UPDATED: Open story in new page when clicked
         storyCard.addEventListener('click', () => {
-            openStory(story);
-            // Scroll to top when story opens
-            setTimeout(() => {
-                scrollToTop();
-            }, 50); // Small delay to ensure content loads
+            openStoryInNewPage(story.id);
         });
+        
         storiesGrid.appendChild(storyCard);
     });
 }
 
-// Open a story with word selection
+// This function is for backward compatibility (not used with new page approach)
 function openStory(story) {
     currentStory = story;
     document.getElementById('storyTitle').textContent = story.title;
@@ -212,17 +247,13 @@ function openStory(story) {
         const p = document.createElement('div');
         p.className = 'paragraph';
 
-      
-
-        // Process text to make ALL words clickable, not just those in dictionary
+        // Process text to make ALL words clickable
         const words = paragraph.split(' ');
         const processedWords = words.map(word => {
             const cleanWord = word.replace(/[.,!?;:"]/g, '').toLowerCase();
-            const isUnknown = savedWords.some(w => w.word === cleanWord && w.status === 'unknown');
-            const isSaved = savedWords.some(w => w.word === cleanWord && w.status === 'saved');
+            const isSaved = savedWords.some(w => w.word === cleanWord);
 
             let className = 'word';
-            if (isUnknown) className += ' unknown';
             if (isSaved) className += ' saved';
             if (!dictionary[cleanWord]) className += ' no-translation';
 
@@ -251,14 +282,7 @@ function setupWordInteractions() {
         word.addEventListener('click', (e) => {
             e.stopPropagation();
             const wordText = word.dataset.word;
-
-            if (dictionary[wordText]) {
-                // Word has translation - show dictionary
-                showDictionary(wordText, word);
-            } else {
-                // Word has no translation - show message
-                showNoTranslationMessage(wordText, word);
-            }
+            showDictionary(wordText, word);
         });
 
         // Mouse events for desktop long press
@@ -288,17 +312,27 @@ function setupWordInteractions() {
 // Show dictionary popup for words with translations
 function showDictionary(word, element) {
     const wordData = dictionary[word];
-    if (!wordData) return;
-
+    
     document.getElementById('popupWord').textContent = word;
-    document.getElementById('popupPos').textContent = wordData.pos;
-    document.getElementById('popupDefinition').textContent = wordData.definition;
-    document.getElementById('popupExample').textContent = wordData.example;
-    document.getElementById('popupTranslation').textContent = wordData.translation;
+    
+    if (wordData) {
+        document.getElementById('popupTranslation').textContent = wordData.translation;
+        document.getElementById('popupPos').style.display = 'none';
+        document.getElementById('popupDefinition').style.display = 'none';
+        document.getElementById('popupExample').style.display = 'none';
+    } else {
+        document.getElementById('popupTranslation').textContent = "لا توجد ترجمة متاحة";
+        document.getElementById('popupPos').style.display = 'none';
+        document.getElementById('popupDefinition').style.display = 'none';
+        document.getElementById('popupExample').style.display = 'none';
+    }
 
-    // Update save button text for words with translations
-    saveWordBtn.innerHTML = '<i class="fas fa-bookmark"></i> Save Word';
-    saveWordBtn.style.display = 'block';
+    // Update save button
+    const isSaved = savedWords.some(w => w.word === word);
+    saveWordBtn.innerHTML = isSaved 
+        ? '<i class="fas fa-check"></i> Already Saved'
+        : '<i class="fas fa-bookmark"></i> Save Word';
+    saveWordBtn.disabled = isSaved;
 
     // Position the popup near the word
     const rect = element.getBoundingClientRect();
@@ -307,42 +341,13 @@ function showDictionary(word, element) {
     dictionaryPopup.style.display = 'block';
 
     // Store current word for saving
-    dictionaryPopup.currentWord = word;
-    dictionaryPopup.currentElement = element;
-    dictionaryPopup.hasTranslation = true;
-}
-
-// Show message for words without translations
-function showNoTranslationMessage(word, element) {
-    // Update popup content for no translation
-    document.getElementById('popupWord').textContent = word;
-    document.getElementById('popupPos').textContent = "No data available";
-    document.getElementById('popupDefinition').textContent = "This word is not yet in our dictionary.";
-    document.getElementById('popupExample').textContent = "We're constantly adding new words to our database.";
-    document.getElementById('popupTranslation').textContent = "لا توجد ترجمة متاحة";
-
-    // Update save button text for words without translations
-    saveWordBtn.innerHTML = '<i class="fas fa-bookmark"></i> Save Word (No Translation)';
-    saveWordBtn.style.display = 'block';
-
-    // Position the popup near the word
-    const rect = element.getBoundingClientRect();
-    dictionaryPopup.style.top = `${rect.bottom + window.scrollY + 10}px`;
-    dictionaryPopup.style.left = `${Math.max(10, rect.left + window.scrollX - 150)}px`;
-    dictionaryPopup.style.display = 'block';
-
-    // Store current word
-    dictionaryPopup.currentWord = word;
-    dictionaryPopup.currentElement = element;
-    dictionaryPopup.hasTranslation = false;
+    currentWordData = { word, element };
 }
 
 // Hide dictionary popup
 function hideDictionary() {
     dictionaryPopup.style.display = 'none';
-    dictionaryPopup.currentWord = null;
-    dictionaryPopup.currentElement = null;
-    dictionaryPopup.hasTranslation = false;
+    currentWordData = null;
 }
 
 // Show sentence translation
@@ -386,63 +391,85 @@ function showSentenceTranslation(element) {
     }, 5000);
 }
 
-// Save current word to vocabulary (works for both words with and without translations)
+// Save current word to vocabulary
 function saveCurrentWord() {
-    const word = dictionaryPopup.currentWord;
-    if (!word) return;
+    if (!currentWordData) return;
 
-    const hasTranslation = dictionaryPopup.hasTranslation;
+    const { word, element } = currentWordData;
     const wordData = dictionary[word];
 
     // Check if word is already saved
-    const existingIndex = savedWords.findIndex(w => w.word === word);
-
-    if (existingIndex === -1) {
-        // Create new word entry
-        const newWord = {
-            word: word,
-            status: 'saved',
-            added: new Date().toISOString(),
-            nextReview: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // Tomorrow
-            story: currentStory ? currentStory.title : 'Unknown',
-            hasTranslation: hasTranslation
-        };
-
-        // Add translation data if available
-        if (hasTranslation && wordData) {
-            newWord.translation = wordData.translation;
-            newWord.definition = wordData.definition;
-            newWord.example = wordData.example;
-            newWord.pos = wordData.pos;
-        } else {
-            // For words without translations
-            newWord.translation = "No translation available";
-            newWord.definition = "This word is not yet in our dictionary";
-            newWord.example = "We're working on adding more words to our database";
-            newWord.pos = "unknown";
-        }
-
-        savedWords.push(newWord);
-    } else {
-        savedWords[existingIndex].status = 'saved';
-        savedWords[existingIndex].hasTranslation = hasTranslation;
+    if (savedWords.some(w => w.word === word)) {
+        showNotification('Word already saved!');
+        return;
     }
 
+    // Get story title - FIXED VERSION
+    let storyTitle = 'Unknown';
+    
+    // Get story from localStorage (for reader page)
+    const storyData = localStorage.getItem('currentReadingStory');
+    if (storyData) {
+        const parsedStory = JSON.parse(storyData);
+        storyTitle = parsedStory.title;
+    }
+    // If in stories page on main site
+    else if (currentPage === 'stories' && currentStory) {
+        storyTitle = currentStory.title;
+    }
+    // Try to get from URL parameters
+    else {
+        const urlParams = new URLSearchParams(window.location.search);
+        const storyId = urlParams.get('id');
+        
+        if (storyId && stories.length > 0) {
+            const story = stories.find(s => s.id == storyId);
+            if (story) {
+                storyTitle = story.title;
+            }
+        }
+    }
+
+    // Create new word entry
+    const newWord = {
+        word: word,
+        status: 'saved',
+        added: new Date().toISOString(),
+        nextReview: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+        story: storyTitle,
+        hasTranslation: !!wordData
+    };
+
+    // Add translation data if available
+    if (wordData) {
+        newWord.translation = wordData.translation;
+        newWord.definition = wordData.definition;
+        newWord.example = wordData.example;
+        newWord.pos = wordData.pos;
+    } else {
+        // For words without translations
+        newWord.translation = "No translation available";
+        newWord.definition = "This word is not yet in our dictionary";
+        newWord.example = "We're working on adding more words to our database";
+        newWord.pos = "unknown";
+    }
+
+    savedWords.push(newWord);
     localStorage.setItem('savedWords', JSON.stringify(savedWords));
     renderVocabulary();
     updateStats();
     hideDictionary();
 
     // Update word appearance in the story
-    if (dictionaryPopup.currentElement) {
-        dictionaryPopup.currentElement.classList.add('saved');
-        dictionaryPopup.currentElement.classList.remove('unknown');
+    if (element) {
+        element.classList.add('saved');
+        element.classList.remove('unknown');
     }
 
     // Show confirmation message
-    const message = hasTranslation
-        ? `"${word}" saved to vocabulary with translation!`
-        : `"${word}" saved to vocabulary (translation will be added later)`;
+    const message = wordData
+        ? `"${word}" saved to vocabulary from "${storyTitle}"!`
+        : `"${word}" saved to vocabulary from "${storyTitle}" (translation will be added later)`;
 
     showNotification(message);
 }
@@ -463,15 +490,19 @@ function showNotification(message) {
         box-shadow: var(--shadow);
         z-index: 1000;
         font-weight: 500;
+        animation: slideIn 0.3s ease;
     `;
 
     document.body.appendChild(notification);
 
     // Remove after 3 seconds
     setTimeout(() => {
-        if (document.body.contains(notification)) {
-            document.body.removeChild(notification);
-        }
+        notification.style.animation = 'slideOut 0.3s ease';
+        setTimeout(() => {
+            if (document.body.contains(notification)) {
+                document.body.removeChild(notification);
+            }
+        }, 300);
     }, 3000);
 }
 
@@ -501,11 +532,9 @@ function renderVocabulary() {
             <div class="word-info">
                 <div class="word-main">
                     <span class="word-text">${word.word}</span>
-                <!--    <span class="word-pos">${word.pos}</span> -->
                     <span class="word-translation">${word.translation}</span>
                     ${translationBadge}
                 </div>
-             <!--  <div class="word-example">${word.example}</div> -->
                 ${word.story ? `<div class="word-story" style="font-size: 0.8rem; color: var(--text-light); margin-top: 5px;">From: ${word.story}</div>` : ''}
             </div>
             <div class="word-actions">
@@ -539,6 +568,7 @@ function markAsKnown(index) {
     savedWords[index].status = 'known';
     savedWords[index].mastered = new Date().toISOString();
     localStorage.setItem('savedWords', JSON.stringify(savedWords));
+    showNotification('Word marked as mastered!');
     renderVocabulary();
     updateStats();
 }
@@ -566,9 +596,6 @@ function updateStats() {
     }).length;
 
     document.getElementById('practiceDue').textContent = dueForReview;
-
-    // Count words without translations
-    const wordsWithoutTranslation = savedWords.filter(w => !w.hasTranslation).length;
 
     // Simple streak calculation (for demo)
     const streak = Math.min(7, savedWords.length);
@@ -628,98 +655,6 @@ function toggleAudio() {
     alert('Text-to-speech would play here. This feature requires a real TTS API implementation.');
     listenBtn.classList.toggle('active');
 }
-
-
-
-// Upload a new story (demo functionality)
-function uploadStory() {
-    const title = document.getElementById('adminStoryTitle').value;
-    const level = document.getElementById('storyLevel').value;
-    const content = document.getElementById('storyContent').value;
-
-    if (!title || !content) {
-        alert('Please fill in all required fields');
-        return;
-    }
-
-    // In a real app, this would send to a backend
-    alert(`Story "${title}" uploaded successfully! This would be saved to a database in a real implementation.`);
-
-    // Clear form
-    document.getElementById('adminStoryTitle').value = '';
-    document.getElementById('storyContent').value = '';
-}
-
-// Function to render cover images
-function renderStoryCover(story) {
-    if (!story.cover) {
-        // Default book icon if no cover specified
-        return '<i class="fas fa-book"></i>';
-    }
-
-    if (story.coverType === 'emoji') {
-        return `<div class="story-emoji">${story.cover}</div>`;
-    } else if (story.coverType === 'image') {
-        return `<img src="${story.cover}" alt="${story.title}" class="story-image">`;
-    } else if (story.coverType === 'icon') {
-        return `<i class="${story.cover}"></i>`;
-    } else {
-        // Default to emoji if type not specified
-        return `<div class="story-emoji">${story.cover}</div>`;
-    }
-}
-
-// Update the renderStories function to use covers
-function renderStories(level = 'all') {
-    storiesGrid.innerHTML = '';
-
-    const filteredStories = level === 'all'
-        ? stories
-        : stories.filter(story => story.level === level);
-
-    if (filteredStories.length === 0) {
-        storiesGrid.innerHTML = `
-            <div style="grid-column: 1 / -1; text-align: center; padding: 40px;">
-                <p>No stories found for this level.</p>
-            </div>
-        `;
-        return;
-    }
-
-    filteredStories.forEach(story => {
-        const storyCard = document.createElement('div');
-        storyCard.className = 'story-card';
-        storyCard.innerHTML = `
-            <div class="story-image">
-                ${renderStoryCover(story)}
-            </div>
-            <div class="story-content">
-                <span class="story-level ${story.level}">${story.level.charAt(0).toUpperCase() + story.level.slice(1)}</span>
-                <h3 class="story-title">${story.title}</h3>
-                <p>${story.content[0].substring(0, 100)}...</p>
-                <div class="story-meta">
-                    <span><i class="fas fa-font"></i> ${story.wordCount} words</span>
-                    <span><i class="fas fa-clock"></i> ${Math.ceil(story.wordCount / 200)} min read</span>
-                </div>
-            </div>
-        `;
-
-        storyCard.addEventListener('click', () => {
-            openStory(story);
-            // Scroll to top when story opens
-            setTimeout(() => {
-                scrollToTop();
-            }, 50);
-        });
-        storiesGrid.appendChild(storyCard);
-    });
-}
-
-// Initialize the app when DOM is loaded
-document.addEventListener('DOMContentLoaded', init);
-
-
-
 
 // Export vocabulary as CSV file
 function exportVocabulary() {
@@ -787,43 +722,7 @@ function formatDateForExport(dateString) {
     });
 }
 
-// Simple notification function
-function showNotification(message) {
-    // Create notification element
-    const notification = document.createElement('div');
-    notification.className = 'notification';
-    notification.textContent = message;
-    notification.style.cssText = `
-        position: fixed;
-        top: 20px;
-        right: 20px;
-        background: #10b981;
-        color: white;
-        padding: 12px 20px;
-        border-radius: 8px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-        z-index: 1000;
-        font-weight: 500;
-        animation: slideIn 0.3s ease;
-    `;
-    
-    // Add to page
-    document.body.appendChild(notification);
-    
-    // Remove after 3 seconds
-    setTimeout(() => {
-        if (document.body.contains(notification)) {
-            notification.style.animation = 'slideOut 0.3s ease';
-            setTimeout(() => {
-                if (document.body.contains(notification)) {
-                    document.body.removeChild(notification);
-                }
-            }, 300);
-        }
-    }, 3000);
-}
-
-// Add this CSS for animations
+// Add CSS animations
 const style = document.createElement('style');
 style.textContent = `
     @keyframes slideIn {
@@ -836,3 +735,6 @@ style.textContent = `
     }
 `;
 document.head.appendChild(style);
+
+// Initialize the app when DOM is loaded
+document.addEventListener('DOMContentLoaded', init);
