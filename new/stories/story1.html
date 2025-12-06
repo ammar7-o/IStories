@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Story Reader - IStories</title>
+    <link rel="stylesheet" href="../font-awesome/css/all.min.css">
+    <link rel="stylesheet" href="../reader/read-style.css">
+</head>
+
+<body>
+
+    <div class="app"></div>
+    <script src="../reader/structure.js"></script>
+    <script>
+        const sound = document.getElementById("sound");
+        sound.src = "../sounds/story1.mp3"; // change the sound
+    </script>
+
+
+</body>
+<script>
+    // Internal stories data
+    const storiesData = {
+        stories: [
+            {
+                id: 1,
+                title: "The Beginning of Everything",
+                level: "Beginner",
+                wordCount: 350,
+                content: [
+                    "Hello and welcome to IStories! This website was created by Ammar Chacal to help people learn languages in a fun and engaging way. Through these interactive stories, you can improve your vocabulary and comprehension skills naturally.",
+                    "Each story is designed for different learning levels - beginner, intermediate, and advanced. The beginner stories use simple words and short sentences, perfect for those just starting their language learning journey.",
+                    "As you read, you can click on any word to see its translation and definition. This feature helps you learn new vocabulary in context, which is much more effective than memorizing word lists.",
+                    "The stories cover various topics and genres, from everyday situations to exciting adventures. This variety ensures that you encounter different types of vocabulary and sentence structures.",
+                    "Reading regularly is one of the best ways to improve your language skills. With IStories, you can practice reading comprehension while enjoying interesting narratives.",
+                    "Remember that learning a language takes time and patience. Don't worry if you don't understand every word at first. Use the click-to-translate feature and try to understand the general meaning of each paragraph.",
+                    "We recommend reading one story each day and reviewing the vocabulary you learn. Consistent practice is the key to making progress in any language.",
+                    "Thank you for choosing IStories for your language learning journey. We hope you enjoy these stories and find them helpful in achieving your language goals."
+                ],
+            },
+
+        ]
+    };
+</script>
+
+
+<script>
+    var dictionary = {
+
+        "hello": { translation: "مرحبًا" },
+        "and": { translation: "و" },
+        "welcome": { translation: "أهلاً بك" },
+        "to": { translation: "إلى" },
+        "istories": { translation: "آي ستوريس" },
+        "this": { translation: "هذا" },
+        "website": { translation: "موقع" },
+        "was": { translation: "كان" },
+        "created": { translation: "تم إنشاؤه" },
+        "by": { translation: "بواسطة" },
+        "ammar": { translation: "عمّار" },
+        "chacal": { translation: "شاكال" },
+        "help": { translation: "مساعدة" },
+        "people": { translation: "الناس" },
+        "learn": { translation: "يتعلموا" },
+        "languages": { translation: "اللغات" },
+        "in": { translation: "في" },
+        "a": { translation: "ـ" },
+        "fun": { translation: "ممتعة" },
+        "engaging": { translation: "جذّابة" },
+        "way": { translation: "طريقة" },
+        "through": { translation: "من خلال" },
+        "these": { translation: "هذه" },
+        "interactive": { translation: "تفاعلية" },
+        "stories": { translation: "القصص" },
+        "you": { translation: "أنت" },
+        "can": { translation: "تستطيع" },
+        "improve": { translation: "تحسّن" },
+        "your": { translation: "مهاراتك" },
+        "vocabulary": { translation: "المفردات" },
+        "and": { translation: "و" },
+        "comprehension": { translation: "الفهم" },
+        "skills": { translation: "المهارات" },
+        "naturally": { translation: "بشكل طبيعي" },
+
+        "each": { translation: "كل" },
+        "story": { translation: "قصة" },
+        "is": { translation: "هي" },
+        "designed": { translation: "مصممة" },
+        "for": { translation: "لـ" },
+        "different": { translation: "مختلفة" },
+        "learning": { translation: "التعلم" },
+        "levels": { translation: "المستويات" },
+        "beginner": { translation: "مبتدئ" },
+        "intermediate": { translation: "متوسط" },
+        "advanced": { translation: "متقدم" },
+        "use": { translation: "تستخدم" },
+        "simple": { translation: "بسيطة" },
+        "words": { translation: "كلمات" },
+        "short": { translation: "قصيرة" },
+        "sentences": { translation: "جمل" },
+        "perfect": { translation: "مثالية" },
+        "those": { translation: "الذين" },
+        "just": { translation: "فقط" },
+        "starting": { translation: "يبدؤون" },
+        "their": { translation: "رحلتهم" },
+        "journey": { translation: "رحلة" },
+
+        "as": { translation: "بينما" },
+        "read": { translation: "تقرأ" },
+        "click": { translation: "اضغط" },
+        "on": { translation: "على" },
+        "any": { translation: "أي" },
+        "word": { translation: "كلمة" },
+        "see": { translation: "لتشاهد" },
+        "its": { translation: "ترجمتها" },
+        "translation": { translation: "ترجمة" },
+        "definition": { translation: "تعريف" },
+        "feature": { translation: "ميزة" },
+        "helps": { translation: "تساعد" },
+        "new": { translation: "جديدة" },
+        "context": { translation: "السياق" },
+        "much": { translation: "أكثر" },
+        "effective": { translation: "فعالية" },
+        "than": { translation: "من" },
+        "memorizing": { translation: "حفظ" },
+        "lists": { translation: "قوائم" },
+
+        "cover": { translation: "تغطي" },
+        "various": { translation: "متنوعة" },
+        "topics": { translation: "مواضيع" },
+        "genres": { translation: "أنواع" },
+        "from": { translation: "من" },
+        "everyday": { translation: "يومية" },
+        "situations": { translation: "مواقف" },
+        "exciting": { translation: "ممتعة" },
+        "adventures": { translation: "مغامرات" },
+        "variety": { translation: "التنوّع" },
+        "ensures": { translation: "يضمن" },
+        "encounter": { translation: "مواجهة" },
+        "types": { translation: "أنواع" },
+        "sentence": { translation: "جملة" },
+        "structures": { translation: "تراكيب" },
+
+        "reading": { translation: "القراءة" },
+        "regularly": { translation: "بانتظام" },
+        "one": { translation: "واحدة" },
+        "best": { translation: "أفضل" },
+        "ways": { translation: "طرق" },
+        "practice": { translation: "تدرب" },
+        "while": { translation: "أثناء" },
+        "enjoying": { translation: "الاستمتاع" },
+        "interesting": { translation: "شيّقة" },
+        "narratives": { translation: "سرديات" },
+
+        "remember": { translation: "تذكر" },
+        "that": { translation: "أن" },
+        "takes": { translation: "يأخذ" },
+        "time": { translation: "وقتًا" },
+        "patience": { translation: "صبرًا" },
+        "don't": { translation: "لا" },
+        "worry": { translation: "تقلق" },
+        "understand": { translation: "تفهم" },
+        "every": { translation: "كل" },
+        "first": { translation: "أولاً" },
+        "try": { translation: "حاول" },
+        "general": { translation: "العام" },
+        "meaning": { translation: "المعنى" },
+        "paragraph": { translation: "فقرة" },
+
+        "we": { translation: "نحن" },
+        "recommend": { translation: "نوصي" },
+        "day": { translation: "يوم" },
+        "reviewing": { translation: "مراجعة" },
+        "consistent": { translation: "الاستمرارية" },
+        "key": { translation: "مفتاح" },
+        "making": { translation: "تحقيق" },
+        "progress": { translation: "تقدم" },
+
+        "thank": { translation: "شكرًا" },
+        "choosing": { translation: "اختيار" },
+        "hope": { translation: "نأمل" },
+        "enjoy": { translation: "تستمتع" },
+        "find": { translation: "تجد" },
+        "them": { translation: "إياها" },
+        "helpful": { translation: "مفيدة" },
+        "achieving": { translation: "تحقيق" },
+        "goals": { translation: "أهدافك" },
+        "deep": { translation: "عميق" },
+    }
+</script>
+<script src="../reader/read-script.js"></script>
+
+</html>
