@@ -7,6 +7,11 @@
     <title>Story Reader - IStories</title>
     <link rel="stylesheet" href="../font-awesome/css/all.min.css">
     <link rel="stylesheet" href="read-style.css">
+    <link rel="icon" type="image/png" href="../icon.png">
+    <meta property="og:title" content="My Website Title">
+    <meta property="og:description" content="Learn Languages Through Interactive Stories.">
+    <meta property="og:image" content="../icon.png">
+    <meta property="og:type" content="website">
 </head>
 
 <body>
@@ -76,10 +81,17 @@
             <!-- Vocabulary Page -->
             <div id="vocabularyPage" class="page">
                 <div class="vocabulary-header">
-                    <h2>My Vocabulary</h2>
+                      <h2>My Vocabulary</h2>
+                    <div style="display: flex; gap: 5px;">
+                  
                     <button class="btn btn-primary" id="exportVocabulary">
                         <i class="fas fa-download"></i> Export CSV
                     </button>
+
+                    <button id="removebtn" class="btn btn-primary">
+                        <i class="fas fa-remove"></i> Remove all
+                    </button>
+                    </div>
                 </div>
 
                 <div class="vocabulary-stats">
@@ -136,7 +148,7 @@
     <script>
         var idStory = 1;
     </script>
-    <script  type="module" src="read-script.js"></script>
+    <script type="module" src="read-script.js"></script>
 
 
 

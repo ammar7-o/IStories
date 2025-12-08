@@ -169,6 +169,28 @@ function getFallbackStory(storyId) {
 
     return fallbackStories[storyId] || fallbackStories[1];
 }
+const removebtn = document.getElementById("removebtn")
+removebtn.addEventListener("click", function(){
+    removeAll();
+})
+function removeAll() {
+    const confirmed = window.confirm("Are you sure you want to remove all saved words? This action cannot be undone.");
+
+    if (!confirmed) return; // user canceled
+
+    // Clear localStorage
+    localStorage.setItem('savedWords', JSON.stringify([]));
+
+    // Clear in-memory array
+    savedWords = [];
+
+    // Show notification
+    showNotification(`All saved words removed successfully! (${savedWords.length} words)`);
+
+    // Update UI
+    renderVocabulary();
+    updateVocabularyStats();
+}
 
 const sound = document.getElementById("sound");
 const lvl = document.getElementById("lvl");

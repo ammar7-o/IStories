@@ -7,6 +7,11 @@
     <title>LinguaStories - Learn Languages Through Interactive Stories</title>
     <link rel="stylesheet" href="font-awesome/css/all.min.css">
     <link rel="stylesheet" href="style.css">
+    <link rel="icon" type="image/png" href="../icon.png">
+  <meta property="og:title" content="My Website Title">
+  <meta property="og:description" content="Learn Languages Through Interactive Stories.">
+  <meta property="og:image" content="../icon.png">
+  <meta property="og:type" content="website">
 </head>
 
 <body>
@@ -87,7 +92,7 @@
             <div id="vocabulary" class="page">
                 <div class="vocabulary-header">
                     <h2>My Vocabulary</h2>
-                     <div>
+                    <div>
                         <button onclick="exportVocabulary()" class="btn btn-primary" id="exportBtn">
                             <i class="fas fa-download"></i> Export CSV
                         </button>
@@ -173,15 +178,16 @@
     <!-- Dictionary Popup -->
     <div class="dictionary-popup" id="dictionaryPopup">
         <div class="dictionary-header">
-            <div class="dictionary-word"   style="margin-right: 10px;" id="popupWord">Word</div>
+            <div class="dictionary-word" style="margin-right: 10px;" id="popupWord">Word</div>
             <button class="close-popup" id="closePopup">
                 <i class="fas fa-times"></i>
             </button>
         </div>
         <div class="dictionary-pos" style="display: none;" id="popupPos">noun</div>
-        <div class="dictionary-definition"  style="display: none;" id="popupDefinition">Definition will appear here</div>
-        <div class="dictionary-example"  style="display: none;" id="popupExample">Example sentence will appear here</div>
-        <div class="dictionary-translation"  style="font-size: 20px;" id="popupTranslation">Translation will appear here</div>
+        <div class="dictionary-definition" style="display: none;" id="popupDefinition">Definition will appear here</div>
+        <div class="dictionary-example" style="display: none;" id="popupExample">Example sentence will appear here</div>
+        <div class="dictionary-translation" style="font-size: 20px;" id="popupTranslation">Translation will appear here
+        </div>
         <div class="dictionary-actions">
             <button class="save-word" id="saveWordBtn">
                 <i class="fas fa-bookmark"></i> Save Word
@@ -201,14 +207,14 @@
                 </div>
                 <div class="footer-links">
                     <a target="_blank" href="https://ammar7-o.github.io/RAME/#">About</a>
-                
+
                 </div>
             </div>
         </div>
     </footer>
     <!-- stories -->
     <script src="database/main.js"></script>
-       <script src="database/more.js"></script>
+    <script src="database/more.js"></script>
 
     <!-- <script src="Dictionarys/main.js"></script> -->
     <script src="script.js"></script>
