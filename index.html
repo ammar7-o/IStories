@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Istories</title>
+<style>
+  /* Page styling */
+  body {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    background: linear-gradient(135deg, #ff9a9e, #fad0c4);
+    font-family: 'Arial', sans-serif;
+  }
+
+  .button-container {
+    display: flex;
+    flex-direction: column;
+    gap: 30px;
+  }
+
+  /* Common button style */
+  .btn {
+    padding: 15px 30px;
+    font-size: 18px;
+    font-weight: bold;
+    border: none;
+    border-radius: 50px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+    color: white;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+  }
+
+  /* Button 1 */
+  .btn-1 {
+    background: linear-gradient(45deg, #6a11cb, #2575fc);
+  }
+  .btn-1:hover {
+    transform: scale(1.1);
+    box-shadow: 0 10px 20px rgba(0,0,0,0.3);
+  }
+
+  /* Button 2 */
+  .btn-2 {
+    background: linear-gradient(45deg, #f7971e, #ffd200);
+    color: #333;
+  }
+  .btn-2:hover {
+    transform: rotate(-5deg) scale(1.1);
+    box-shadow: 0 10px 20px rgba(0,0,0,0.3);
+  }
+
+  /* Optional cool effect: ripple on click */
+  .btn::after {
+    content: "";
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    top: 0;
+    left: -100%;
+    background: rgba(255,255,255,0.3);
+    transform: skewX(-45deg);
+    transition: 0.5s;
+  }
+  .btn:hover::after {
+    left: 200%;
+  }
+</style>
+</head>
+<body>
+
+<div class="button-container">
+  <button onclick="window.location.href='/English/index.html'" class="btn btn-1">English</button>
+  <button   onclick="window.location.href='/french/index.html'"class="btn btn-2">french</button>
+</div>
+
+</body>
+</html>
