@@ -10,6 +10,15 @@ let stories = []; // Will be loaded from external file
 // Store current word for saving
 let currentWordData = null;
 
+// Flashcard system variables
+let currentCards = [];
+let currentCardIndex = 0;
+let cardsReviewed = 0;
+let sessionCards = [];
+
+// Dictionary fallback
+let dictionary = window.dictionary || {};
+
 // DOM elements
 const pages = document.querySelectorAll('.page');
 const navLinks = document.querySelectorAll('.nav-link');
@@ -27,6 +36,26 @@ const lineSpacingBtn = document.getElementById('lineSpacing');
 const listenBtn = document.getElementById('listenBtn');
 const saveWordBtn = document.getElementById('saveWordBtn');
 const closePopup = document.getElementById('closePopup');
+
+// Flashcard DOM elements
+const flashcard = document.getElementById('flashcard');
+const flashcardWord = document.getElementById('flashcardWord');
+const flashcardTranslation = document.getElementById('flashcardTranslation');
+const flashcardStory = document.getElementById('flashcardStory');
+const cardAgain = document.getElementById('cardAgain');
+const cardHard = document.getElementById('cardHard');
+const cardGood = document.getElementById('cardGood');
+const cardEasy = document.getElementById('cardEasy');
+const shuffleCards = document.getElementById('shuffleCards');
+const resetProgress = document.getElementById('resetProgress');
+const progressText = document.getElementById('progressText');
+const progressFill = document.getElementById('progressFill');
+
+// Flashcard statistics elements
+const dueCards = document.getElementById('dueCards');
+const totalCards = document.getElementById('totalCards');
+const masteredCards = document.getElementById('masteredCards');
+const learningCards = document.getElementById('learningCards');
 
 // Function to scroll to top of page
 function scrollToTop() {
@@ -61,6 +90,7 @@ function init() {
     renderVocabulary();
     updateStats();
     applyTheme();
+    initFlashcards(); // Initialize flashcards
 
     // Event listeners
     setupEventListeners();
@@ -150,7 +180,13 @@ function switchPage(page) {
             link.classList.remove('active');
         }
     });
+    
+    // Refresh flashcards when switching to flashcards page
+    if (page === 'flashcards') {
+        loadFlashcards();
+    }
 }
+
 function removeAll() {
     const confirmed = window.confirm("Are you sure you want to remove all saved words? This action cannot be undone.");
 
@@ -167,10 +203,10 @@ function removeAll() {
 
     // Update UI
     renderVocabulary();
-    updateVocabularyStats();
+    updateStats(); // Fixed: was updateVocabularyStats()
 }
 
-// NEW FUNCTION: Open story in a new page WITH story title
+// Open story in a new page WITH story title
 function openStoryInNewPage(storyId) {
     // Find the story in the stories array
     const story = stories.find(s => s.id == storyId);
@@ -329,21 +365,12 @@ function setupWordInteractions() {
 
 // Show dictionary popup for words with translations
 function showDictionary(word, element) {
-    const wordData = dictionary[word];
+    const wordData = dictionary[word] || {
+        translation: "No translation available"
+    };
 
     document.getElementById('popupWord').textContent = word;
-
-    if (wordData) {
-        document.getElementById('popupTranslation').textContent = wordData.translation;
-        document.getElementById('popupPos').style.display = 'none';
-        document.getElementById('popupDefinition').style.display = 'none';
-        document.getElementById('popupExample').style.display = 'none';
-    } else {
-        document.getElementById('popupTranslation').textContent = "لا توجد ترجمة متاحة";
-        document.getElementById('popupPos').style.display = 'none';
-        document.getElementById('popupDefinition').style.display = 'none';
-        document.getElementById('popupExample').style.display = 'none';
-    }
+    document.getElementById('popupTranslation').textContent = wordData.translation;
 
     // Update save button
     const isSaved = savedWords.some(w => w.word === word);
@@ -414,7 +441,7 @@ function saveCurrentWord() {
     if (!currentWordData) return;
 
     const { word, element } = currentWordData;
-    const wordData = dictionary[word];
+    const wordData = dictionary[word] || {};
 
     // Check if word is already saved
     if (savedWords.some(w => w.word === word)) {
@@ -422,7 +449,7 @@ function saveCurrentWord() {
         return;
     }
 
-    // Get story title - FIXED VERSION
+    // Get story title
     let storyTitle = 'Unknown';
 
     // Get story from localStorage (for reader page)
@@ -455,21 +482,15 @@ function saveCurrentWord() {
         added: new Date().toISOString(),
         nextReview: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
         story: storyTitle,
-        hasTranslation: !!wordData
+        hasTranslation: !!wordData.translation
     };
 
     // Add translation data if available
-    if (wordData) {
+    if (wordData.translation) {
         newWord.translation = wordData.translation;
-        newWord.definition = wordData.definition;
-        newWord.example = wordData.example;
-        newWord.pos = wordData.pos;
     } else {
         // For words without translations
         newWord.translation = "No translation available";
-        newWord.definition = "This word is not yet in our dictionary";
-        newWord.example = "We're working on adding more words to our database";
-        newWord.pos = "unknown";
     }
 
     savedWords.push(newWord);
@@ -478,6 +499,11 @@ function saveCurrentWord() {
     updateStats();
     hideDictionary();
 
+    // Update flashcard stats if we're on that page
+    if (currentPage === 'flashcards') {
+        updateFlashcardStats();
+    }
+
     // Update word appearance in the story
     if (element) {
         element.classList.add('saved');
@@ -485,7 +511,7 @@ function saveCurrentWord() {
     }
 
     // Show confirmation message
-    const message = wordData
+    const message = wordData.translation
         ? `"${word}" saved to vocabulary from "${storyTitle}"!`
         : `"${word}" saved to vocabulary from "${storyTitle}" (translation will be added later)`;
 
@@ -589,6 +615,7 @@ function markAsKnown(index) {
     showNotification('Word marked as mastered!');
     renderVocabulary();
     updateStats();
+    updateFlashcardStats(); // Also update flashcard stats
 }
 
 // Delete word from vocabulary
@@ -598,6 +625,7 @@ function deleteWord(index) {
     localStorage.setItem('savedWords', JSON.stringify(savedWords));
     renderVocabulary();
     updateStats();
+    updateFlashcardStats(); // Also update flashcard stats
 
     // Show deletion confirmation
     showNotification(`"${word}" removed from vocabulary`);
@@ -739,6 +767,234 @@ function formatDateForExport(dateString) {
         day: 'numeric'
     });
 }
+
+// =============== FLASHCARD FUNCTIONS ===============
+
+// Initialize flashcards
+function initFlashcards() {
+    updateFlashcardStats();
+    setupFlashcardListeners();
+    // Don't load cards immediately, wait until page is shown
+}
+
+// Load flashcards from saved words
+function loadFlashcards() {
+    // Filter words that need review
+    currentCards = savedWords.filter(word => {
+        // If no nextReview date, it's due
+        if (!word.nextReview) return true;
+        
+        // Check if review is due
+        return new Date(word.nextReview) <= new Date();
+    });
+    
+    // Initialize session
+    sessionCards = [...currentCards];
+    currentCardIndex = 0;
+    cardsReviewed = 0;
+    
+    if (sessionCards.length > 0) {
+        loadCard(0);
+        enableCardButtons(true);
+    } else {
+        showNoCardsMessage();
+        enableCardButtons(false);
+    }
+    
+    updateProgress();
+    updateFlashcardStats();
+}
+
+// Load a specific card
+function loadCard(index) {
+    if (index >= sessionCards.length) {
+        showSessionComplete();
+        return;
+    }
+    
+    const card = sessionCards[index];
+    
+    // Front side (word)
+    flashcardWord.textContent = card.word;
+    flashcardTranslation.textContent = card.translation || "No translation available";
+    
+    // Back side details
+    flashcardStory.textContent = card.story ? `From: ${card.story}` : "";
+    
+    // Reset card to front side
+    flashcard.classList.remove('flipped');
+    
+    // Update progress
+    updateProgress();
+}
+
+// Show no cards message
+function showNoCardsMessage() {
+    flashcardWord.textContent = "No cards available";
+    flashcardTranslation.textContent = "Add words from stories to practice";
+    flashcardStory.textContent = "Read stories and save words to practice them here";
+    
+    progressText.textContent = "0/0";
+    progressFill.style.width = "0%";
+}
+
+// Show session complete message
+function showSessionComplete() {
+    flashcardWord.textContent = "Session Complete! 🎉";
+    flashcardTranslation.textContent = "Great job!";
+    flashcardStory.textContent = `You reviewed ${cardsReviewed} cards`;
+    
+    progressText.textContent = `${cardsReviewed}/${cardsReviewed}`;
+    progressFill.style.width = "100%";
+    
+    enableCardButtons(false);
+}
+
+// Update progress display
+function updateProgress() {
+    const total = sessionCards.length;
+    const reviewed = cardsReviewed;
+    
+    progressText.textContent = `${reviewed}/${total}`;
+    
+    if (total > 0) {
+        const percentage = (reviewed / total) * 100;
+        progressFill.style.width = `${percentage}%`;
+    } else {
+        progressFill.style.width = "0%";
+    }
+}
+
+// Update flashcard statistics
+function updateFlashcardStats() {
+    const total = savedWords.length;
+    const due = savedWords.filter(word => {
+        if (!word.nextReview) return true;
+        return new Date(word.nextReview) <= new Date();
+    }).length;
+    
+    const mastered = savedWords.filter(word => word.status === 'known').length;
+    const learning = savedWords.filter(word => word.status === 'saved').length;
+    
+    dueCards.textContent = due;
+    totalCards.textContent = total;
+    masteredCards.textContent = mastered;
+    learningCards.textContent = learning;
+}
+
+// Set up flashcard event listeners
+function setupFlashcardListeners() {
+    // Flip card on click
+    if (flashcard) {
+        flashcard.addEventListener('click', () => {
+            if (sessionCards.length > 0) {
+                flashcard.classList.toggle('flipped');
+            }
+        });
+    }
+    
+    // Card review buttons
+    if (cardAgain) cardAgain.addEventListener('click', () => reviewCard(1)); // Again (1 day)
+    if (cardHard) cardHard.addEventListener('click', () => reviewCard(3)); // Hard (3 days)
+    if (cardGood) cardGood.addEventListener('click', () => reviewCard(7)); // Good (7 days)
+    if (cardEasy) cardEasy.addEventListener('click', () => reviewCard(14)); // Easy (14 days)
+    
+    // Control buttons
+    if (shuffleCards) shuffleCards.addEventListener('click', shuffleFlashcards);
+    if (resetProgress) resetProgress.addEventListener('click', resetCardProgress);
+}
+
+// Review a card with spaced repetition
+function reviewCard(daysToAdd) {
+    if (currentCardIndex >= sessionCards.length) return;
+    
+    const card = sessionCards[currentCardIndex];
+    
+    // Update card in savedWords
+    const wordIndex = savedWords.findIndex(w => w.word === card.word);
+    if (wordIndex !== -1) {
+        // Calculate next review date
+        const nextReviewDate = new Date();
+        nextReviewDate.setDate(nextReviewDate.getDate() + daysToAdd);
+        
+        savedWords[wordIndex].nextReview = nextReviewDate.toISOString();
+        
+        // If marked "Again", reset to learning
+        if (daysToAdd === 1) {
+            savedWords[wordIndex].status = 'saved';
+        }
+        // If marked "Easy", mark as mastered
+        else if (daysToAdd === 14) {
+            savedWords[wordIndex].status = 'known';
+            savedWords[wordIndex].mastered = new Date().toISOString();
+        }
+        
+        // Save to localStorage
+        localStorage.setItem('savedWords', JSON.stringify(savedWords));
+    }
+    
+    // Move to next card
+    cardsReviewed++;
+    currentCardIndex++;
+    
+    if (currentCardIndex < sessionCards.length) {
+        loadCard(currentCardIndex);
+    } else {
+        showSessionComplete();
+    }
+    
+    // Update stats
+    updateFlashcardStats();
+    updateStats(); // Update main stats too
+}
+
+// Enable/disable card buttons
+function enableCardButtons(enabled) {
+    const buttons = [cardAgain, cardHard, cardGood, cardEasy];
+    buttons.forEach(btn => {
+        if (btn) btn.disabled = !enabled;
+    });
+}
+
+// Shuffle flashcards
+function shuffleFlashcards() {
+    if (sessionCards.length > 0) {
+        // Fisher-Yates shuffle algorithm
+        for (let i = sessionCards.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [sessionCards[i], sessionCards[j]] = [sessionCards[j], sessionCards[i]];
+        }
+        
+        currentCardIndex = 0;
+        cardsReviewed = 0;
+        loadCard(currentCardIndex);
+        
+        showNotification('Cards shuffled!');
+    }
+}
+
+// Reset all card progress
+function resetCardProgress() {
+    const confirmed = confirm("Reset all card progress? This will set all words back to 'due' status.");
+    
+    if (confirmed) {
+        savedWords.forEach(word => {
+            word.nextReview = new Date().toISOString();
+            word.status = 'saved';
+            delete word.mastered;
+        });
+        
+        localStorage.setItem('savedWords', JSON.stringify(savedWords));
+        
+        loadFlashcards();
+        updateFlashcardStats();
+        updateStats();
+        
+        showNotification('Card progress reset!');
+    }
+}
+
+// =============== END FLASHCARD FUNCTIONS ===============
 
 // Add CSS animations
 const style = document.createElement('style');

@@ -1,5 +1,5 @@
 // App state
-let savedWords = JSON.parse(localStorage.getItem('savedWords')) || [];
+let savedWords = JSON.parse(localStorage.getItem('french_vocabulary')) || [];
 let theme = localStorage.getItem('theme') || 'light';
 let fontSize = 1.2; // rem
 let lineHeight = 1.8;
@@ -404,7 +404,7 @@ function saveCurrentWord() {
     }
 
     savedWords.push(newWord);
-    localStorage.setItem('savedWords', JSON.stringify(savedWords));
+    localStorage.setItem('french_vocabulary', JSON.stringify(savedWords));
 
     hideDictionary();
 
@@ -559,7 +559,7 @@ function renderVocabulary() {
 // Mark word as mastered
 function markAsMastered(index) {
     savedWords[index].status = 'mastered';
-    localStorage.setItem('savedWords', JSON.stringify(savedWords));
+    localStorage.setItem('french_vocabulary', JSON.stringify(savedWords));
     updateVocabularyStats();
     showNotification('Word marked as mastered!');
     renderVocabulary();
@@ -569,7 +569,7 @@ function markAsMastered(index) {
 function deleteWord(index) {
     const word = savedWords[index].word;
     savedWords.splice(index, 1);
-    localStorage.setItem('savedWords', JSON.stringify(savedWords));
+    localStorage.setItem('french_vocabulary', JSON.stringify(savedWords));
     updateVocabularyStats();
     renderVocabulary();
     showNotification(`"${word}" removed from vocabulary`);
@@ -582,7 +582,7 @@ function removeAll() {
     if (!confirmed) return; // user canceled
 
     // Clear localStorage
-    localStorage.setItem('savedWords', JSON.stringify([]));
+    localStorage.setItem('french_vocabulary', JSON.stringify([]));
 
     // Clear in-memory array
     savedWords = [];
@@ -765,7 +765,7 @@ function searchOnGoogle() {
     const wordToSearch = currentWordData.word;
     
     // Construct the Google search URL
-    const googleSearchUrl = `https://www.google.com/search?q=dictionary : ${encodeURIComponent(wordToSearch)}`;
+    const googleSearchUrl = `https://www.google.com/search?q=${encodeURIComponent(wordToSearch)}`;
     
     // Open the URL in a new tab/window
     window.open(googleSearchUrl, '_blank');

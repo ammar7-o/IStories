@@ -143,11 +143,204 @@ nav a.active {
 .page.active {
     display: block;
 }
+/* Flashcard Page Styles */
+.flashcards-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+}
 
+.flashcard-controls {
+    display: flex;
+    gap: 1rem;
+}
+
+.flashcard-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 1rem;
+    margin-bottom: 2rem;
+}
+
+/* Flashcard Container */
+.flashcard-container {
+    max-width: 600px;
+    margin: 0 auto;
+    perspective: 1000px;
+}
+
+.flashcard {
+    height: 400px;
+    position: relative;
+    transform-style: preserve-3d;
+    transition: transform 0.6s;
+    cursor: pointer;
+    margin-bottom: 2rem;
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+}
+
+.flashcard.flipped {
+    transform: rotateY(180deg);
+}
+
+.flashcard-front,
+.flashcard-back {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    backface-visibility: hidden;
+    border-radius: var(--radius);
+    padding: 2rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}
+
+.flashcard-back {
+    transform: rotateY(180deg);
+    background: rgb(0, 34, 73);
+    color: white;
+}
+
+.flashcard-content {
+    text-align: center;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    width: 100%;
+}
+
+#flashcardWord {
+    font-size: 2.5rem;
+    margin-bottom: 1rem;
+    color: var(--primary);
+}
+
+#flashcardTranslation {
+    font-size: 2rem;
+    margin-bottom: 1.5rem;
+}
+
+.flashcard-context {
+    font-style: italic;
+    color: var(--text-light);
+    margin-top: 1rem;
+    font-size: 0.9rem;
+}
+
+.flashcard-details {
+    text-align: left;
+    width: 100%;
+}
+
+
+
+.flashcard-story {
+    font-size: 1rem;
+    opacity: 0.8;
+    border-top: 1px solid rgba(255, 255, 255, 0.2);
+    padding-top: 1rem;
+}
+
+.flashcard-hint {
+    position: absolute;
+    bottom: 1rem;
+    color: var(--text-light);
+    font-size: 0.9rem;
+}
+
+/* Flashcard Actions */
+.flashcard-actions {
+    display: flex;
+    overflow-x: scroll;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 1rem;
+    margin-bottom: 2rem;
+}
+
+.card-btn {
+    padding: 1rem 1.5rem;
+    border: none;
+    border-radius: var(--radius);
+    cursor: pointer;
+    font-weight: 600;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    min-width: 120px;
+    justify-content: center;
+}
+
+.card-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.card-again {
+    background: #ef4444;
+    color: white;
+}
+
+.card-hard {
+    background: #f59e0b;
+    color: white;
+}
+
+.card-good {
+    background: #10b981;
+    color: white;
+}
+
+.card-easy {
+    background: #3b82f6;
+    color: white;
+}
+
+.card-btn:not(:disabled):hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* Progress Bar */
+.progress-container {
+    background: var(--card-bg);
+    padding: 1rem;
+    border-radius: var(--radius);
+    border: 1px solid var(--border-color);
+}
+
+.progress-label {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 0.5rem;
+    font-size: 0.9rem;
+}
+
+.progress-bar {
+    height: 8px;
+    background: var(--border-color);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.progress-fill {
+    height: 100%;
+    background: var(--primary);
+    width: 0%;
+    transition: width 0.3s ease;
+}
 /* Homepage Styles */
 .hero {
     text-align: center;
-    padding: 40px 0;
+    padding: 40px 10px;
     background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
     color: white;
     border-radius: var(--radius);
@@ -185,7 +378,9 @@ nav a.active {
 .level-filter {
     display: flex;
     justify-content: center;
+
     gap: 15px;
+    
     margin-bottom: 30px;
     overflow-x: scroll;
     padding: 5px;
@@ -689,6 +884,9 @@ footer {
 
 /* Responsive Design */
 @media (max-width: 768px) {
+    .level-filter{
+         justify-content: start;
+    }
     .header-content {
         flex-direction: column;
         gap: 15px;

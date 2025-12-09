@@ -765,7 +765,7 @@ function searchOnGoogle() {
     const wordToSearch = currentWordData.word;
     
     // Construct the Google search URL
-    const googleSearchUrl = `https://www.google.com/search?q=dictionary : ${encodeURIComponent(wordToSearch)}`;
+    const googleSearchUrl = `https://www.google.com/search?q=${encodeURIComponent(wordToSearch)}`;
     
     // Open the URL in a new tab/window
     window.open(googleSearchUrl, '_blank');
