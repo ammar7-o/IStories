@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Istories</title>
+    <link rel="stylesheet" href="../font-awesome/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+    <link rel="icon" type="image/png" href="../icon.png">
+    <meta property="og:title" content="Istories">
+    <meta property="og:description" content="Learn Languages Through Interactive Stories.">
+    <meta property="og:image" content="../icon.png">
+    <meta property="og:type" content="website">
+</head>
+
+<body>
+    <header id="top">
+        <div class="container">
+            <div class="header-content">
+                <a href="../index.html" class="logo">
+                    <i class="fas fa-book-open"></i>
+                    <span>IStories</span>
+                </a>
+                <nav>
+                    <ul>
+                        <li><a href="#" class="nav-link active" data-page="home">Home</a></li>
+                        <li><a href="#" class="nav-link" data-page="vocabulary">Vocabulary</a></li>
+                        <li><a href="#" class="nav-link" data-page="settings">Settings</a></li>
+                    </ul>
+                </nav>
+                <div class="header-actions">
+                    <button class="theme-toggle" id="themeToggle">
+                        <i class="fas fa-moon"></i>
+                    </button>
+                    <div class="user-actions">
+                        <button id="loginBtn">Login</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="main-content">
+        <div class="container">
+            <!-- Home Page -->
+            <div id="home" class="page active">
+                <section class="hero">
+                    <h1>Learn Languages Through Interactive Stories</h1>
+                    <p>Improve your language skills by reading engaging stories with instant translations, definitions,
+                        and audio support.</p>
+                    <button class="cta-button">Start Reading Now</button>
+                </section>
+
+                <div class="level-filter">
+                    <button class="level-btn active" data-level="all">All Levels</button>
+                    <button class="level-btn" data-level="beginner">Beginner</button>
+                    <button class="level-btn" data-level="intermediate">Intermediate</button>
+                    <button class="level-btn" data-level="advanced">Advanced</button>
+                </div>
+
+                <div class="stories-grid" id="storiesGrid">
+                    <!-- Stories will be populated by JavaScript -->
+                </div>
+            </div>
+
+            <!-- Stories Page -->
+            <div id="stories" class="page">
+                <div class="story-header">
+                    <button class="back-button" id="backToStories">
+                        <i class="fas fa-arrow-left"></i> Back to Stories
+                    </button>
+                    <h2 id="storyTitle">The Mysterious Island</h2>
+                </div>
+
+                <div class="reading-controls">
+                    <button class="control-btn" id="fontSmaller">A-</button>
+                    <button class="control-btn active" id="fontNormal">A</button>
+                    <button class="control-btn" id="fontLarger">A+</button>
+                    <button class="control-btn" id="lineSpacing">Line Spacing</button>
+                    <button class="control-btn" id="listenBtn">
+                        <i class="fas fa-volume-up"></i> Listen
+                    </button>
+                </div>
+
+                <div class="story-text" id="storyText">
+                    <!-- Story content will be populated by JavaScript -->
+                </div>
+            </div>
+
+            <!-- Vocabulary Page -->
+            <div id="vocabulary" class="page">
+                <div class="vocabulary-header">
+                    <h2>My Vocabulary</h2>
+                    <div>
+                        <button onclick="exportVocabulary()" class="btn btn-primary" id="exportBtn">
+                            <i class="fas fa-download"></i> Export CSV
+                        </button>
+                        <button onclick="removeAll()" class="btn btn-primary">
+                            <i class="fas fa-remove"></i> Remove all
+                        </button>
+                    </div>
+
+                </div>
+
+                <div class="vocabulary-stats">
+                    <div class="stat-card">
+                        <div class="stat-number" id="totalWords">0</div>
+                        <div class="stat-label">Total Words</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number" id="masteredWords">0</div>
+                        <div class="stat-label">Mastered</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number" id="practiceDue">0</div>
+                        <div class="stat-label">Due for Practice</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number" id="readingStreak">0</div>
+                        <div class="stat-label">Day Streak</div>
+                    </div>
+                </div>
+
+                <div class="vocabulary-list" id="vocabularyList">
+                    <!-- Vocabulary items will be populated by JavaScript -->
+                </div>
+            </div>
+
+            <!-- settings Panel -->
+            <div id="settings" class="page">
+                <h1>comming soon...</h1>
+            </div>
+        </div>
+        </div>
+        </div>
+    </main>
+
+    <!-- Dictionary Popup -->
+    <div class="dictionary-popup" id="dictionaryPopup">
+        <div class="dictionary-header">
+            <div class="dictionary-word" style="margin-right: 10px;" id="popupWord">Word</div>
+            <button class="close-popup" id="closePopup">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="dictionary-pos" style="display: none;" id="popupPos">noun</div>
+        <div class="dictionary-definition" style="display: none;" id="popupDefinition">Definition will appear here</div>
+        <div class="dictionary-example" style="display: none;" id="popupExample">Example sentence will appear here</div>
+        <div class="dictionary-translation" style="font-size: 20px;" id="popupTranslation">Translation will appear here
+        </div>
+        <div class="dictionary-actions">
+            <button class="save-word" id="saveWordBtn">
+                <i class="fas fa-bookmark"></i> Save Word
+            </button>
+            <!-- <button class="close-popup">
+                <i class="fas fa-times"></i> Close
+            </button> -->
+        </div>
+    </div>
+
+    <footer>
+        <div class="container">
+            <div class="footer-content">
+                <div class="logo">
+                    <i class="fas fa-book-open"></i>
+                    <span>IStories</span>
+                </div>
+                <div class="footer-links">
+                    <a target="_blank" href="https://ammar7-o.github.io/RAME/#">About</a>
+
+                </div>
+            </div>
+        </div>
+    </footer>
+    <!-- stories -->
+    <script src="database/main.js"></script>
+    <script src="database/more.js"></script>
+
+    <!-- <script src="Dictionarys/main.js"></script> -->
+    <script src="script.js"></script>
+</body>
+
+</html>
