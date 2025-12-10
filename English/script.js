@@ -552,11 +552,13 @@ function showNotification(message) {
 
 // Render vocabulary list
 function renderVocabulary() {
+    if (!vocabularyList) return;
+
     vocabularyList.innerHTML = '';
 
     if (savedWords.length === 0) {
         vocabularyList.innerHTML = `
-            <div class="vocabulary-item" style="justify-content: center; padding: 40px;">
+            <div style="text-align: center; padding: 40px; color: var(--text-light);">
                 <p>No words saved yet. Click on words in stories to add them to your vocabulary.</p>
             </div>
         `;
@@ -567,9 +569,12 @@ function renderVocabulary() {
         const item = document.createElement('div');
         item.className = 'vocabulary-item';
 
-        // Add warning badge for words without translations
         const translationBadge = !word.hasTranslation
             ? `<span class="no-translation-badge" style="background: #f59e0b; color: white; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; margin-left: 8px;">No Translation</span>`
+            : '';
+
+        const masteredBadge = word.status === 'mastered'
+            ? `<span class="mastered-badge" style="background: rgb(13, 167, 116); color: white; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; margin-left: 8px;">Mastered</span>`
             : '';
 
         item.innerHTML = `
@@ -578,11 +583,15 @@ function renderVocabulary() {
                     <span class="word-text">${word.word}</span>
                     <span class="word-translation">${word.translation}</span>
                     ${translationBadge}
+                    ${masteredBadge}
                 </div>
                 ${word.story ? `<div class="word-story" style="font-size: 0.8rem; color: var(--text-light); margin-top: 5px;">From: ${word.story}</div>` : ''}
+                <div class="word-date" style="font-size: 0.7rem; color: var(--text-lighter); margin-top: 3px;">
+                    Added: ${new Date(word.added || word.date).toLocaleDateString()}
+                </div>
             </div>
             <div class="word-actions">
-                <button title="Mark as known" data-index="${index}">
+                <button title="Mark as mastered" data-index="${index}">
                     <i class="fas fa-check"></i>
                 </button>
                 <button title="Delete" data-index="${index}">
@@ -599,7 +608,7 @@ function renderVocabulary() {
         button.addEventListener('click', (e) => {
             const index = parseInt(e.currentTarget.dataset.index);
             if (e.currentTarget.querySelector('.fa-check')) {
-                markAsKnown(index);
+                markAsMastered(index);
             } else if (e.currentTarget.querySelector('.fa-trash')) {
                 deleteWord(index);
             }
@@ -805,7 +814,7 @@ function loadFlashcards() {
     updateFlashcardStats();
 }
 
-// Load a specific card
+// في دالة loadCard
 function loadCard(index) {
     if (index >= sessionCards.length) {
         showSessionComplete();
@@ -814,18 +823,81 @@ function loadCard(index) {
     
     const card = sessionCards[index];
     
-    // Front side (word)
+    // تنسيق التواريخ
+    const formatDate = (dateString, short = false) => {
+        if (!dateString) return 'Not set';
+        const date = new Date(dateString);
+        if (short) {
+            return date.toLocaleDateString('en-US', {
+                month: 'short',
+                day: 'numeric'
+            });
+        }
+        return date.toLocaleDateString('en-US', {
+            month: 'short',
+            day: 'numeric',
+            year: 'numeric'
+        });
+    };
+    
+    const addedDate = formatDate(card.added);
+   
+    
+    // Front side (word) مع التاريخ
     flashcardWord.textContent = card.word;
     flashcardTranslation.textContent = card.translation || "No translation available";
     
-    // Back side details
-    flashcardStory.textContent = card.story ? `From: ${card.story}` : "";
+    // Back side details مع التواريخ
+    flashcardStory.innerHTML = `
+        <div class="card-dates">
+            <div style="margin-bottom: 10px;">
+                <div style="font-weight: 600; color: var(--text-color); margin-bottom: 5px;">
+                    <i class="fas fa-book" style="margin-right: 8px;"></i>
+                    ${card.story ? `From: ${card.story}` : "Unknown Story"}
+                </div>
+                
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-top: 10px;">
+                    ${card.added ? `
+                        <div class="date-item">
+                            <div style="font-size: 0.75rem; color: var(--text-light); margin-bottom: 2px;">
+                                <i class="far fa-calendar-plus"></i> Added
+                            </div>
+                            <div style="font-size: 0.85rem; font-weight: 500;">
+                                ${addedDate}
+                            </div>
+                        </div>
+                    ` : ''}
+                    
+                   
+            </div>
+        </div>
+    `;
     
     // Reset card to front side
     flashcard.classList.remove('flipped');
     
+    // إضافة event listener لزر التعديل
+    setTimeout(() => {
+        const editBtn = flashcardStory.querySelector('.edit-dates');
+        if (editBtn) {
+            editBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const cardIndex = parseInt(e.currentTarget.dataset.cardIndex);
+                openFlashcardDatePicker(cardIndex);
+            });
+        }
+    }, 100);
+    
     // Update progress
     updateProgress();
+}
+
+// دالة للتحقق إذا كان الاستعراض متأخراً
+function isReviewDue(dateString) {
+    if (!dateString) return false;
+    const reviewDate = new Date(dateString);
+    const today = new Date();
+    return reviewDate < today;
 }
 
 // Show no cards message

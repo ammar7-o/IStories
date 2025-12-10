@@ -1,7 +1,7 @@
 // App state
 let currentPage = 'home';
 let currentStory = null;
-let savedWords = JSON.parse(localStorage.getItem('french_vocabulary')) || []; // CHANGED KEY
+let savedWords = JSON.parse(localStorage.getItem('savedWordsfr')) || [];
 let theme = localStorage.getItem('theme') || 'light';
 let fontSize = 1.2; // rem
 let lineHeight = 1.8;
@@ -67,9 +67,6 @@ function scrollToTop() {
 
 // Initialize the app
 function init() {
-    // Migrate data from old key if it exists
-    migrateLocalStorage();
-    
     // Wait for stories to be loaded from external file
     if (typeof window.storiesData !== 'undefined') {
         stories = window.storiesData.stories || window.storiesData;
@@ -79,12 +76,12 @@ function init() {
         stories = [
             {
                 id: 1,
-                title: "L'Île Mystérieuse",
+                title: "The Mysterious Island",
                 level: "beginner",
                 cover: "🏝️",
                 coverType: "emoji",
                 wordCount: 350,
-                content: ["Ceci est une histoire d'exemple. Cliquez sur des mots comme village ou voyage pour voir le dictionnaire."]
+                content: ["This is a sample story. Click on words like village or journey to see the dictionary."]
             }
         ];
         renderStories();
@@ -97,29 +94,6 @@ function init() {
 
     // Event listeners
     setupEventListeners();
-}
-
-// Migration function for localStorage keys
-function migrateLocalStorage() {
-    // Migrate saved words from old key to new key
-    const oldKey = 'savedWords';
-    const newKey = 'french_vocabulary';
-    
-    const oldData = localStorage.getItem(oldKey);
-    if (oldData && !localStorage.getItem(newKey)) {
-        localStorage.setItem(newKey, oldData);
-        console.log(`Migrated vocabulary data from "${oldKey}" to "${newKey}"`);
-    }
-    
-    // Also migrate theme if needed
-    const oldThemeKey = 'theme';
-    const newThemeKey = 'french_theme';
-    const oldThemeData = localStorage.getItem(oldThemeKey);
-    if (oldThemeData && !localStorage.getItem(newThemeKey)) {
-        localStorage.setItem(newThemeKey, oldThemeData);
-    }
-    // Update theme variable to use new key
-    theme = localStorage.getItem(newThemeKey) || 'light';
 }
 
 // Set up all event listeners
@@ -214,22 +188,22 @@ function switchPage(page) {
 }
 
 function removeAll() {
-    const confirmed = window.confirm("Êtes-vous sûr de vouloir supprimer tous les mots enregistrés ? Cette action ne peut pas être annulée.");
+    const confirmed = window.confirm("Are you sure you want to remove all saved words? This action cannot be undone.");
 
     if (!confirmed) return; // user canceled
 
-    // Clear localStorage with new key
-    localStorage.setItem('french_vocabulary', JSON.stringify([]));
+    // Clear localStorage
+    localStorage.setItem('savedWordsfr', JSON.stringify([]));
 
     // Clear in-memory array
     savedWords = [];
 
-    // Show notification in French
-    showNotification(`Tous les mots ont été supprimés avec succès ! (${savedWords.length} mots)`);
+    // Show notification
+    showNotification(`All saved words removed successfully! (${savedWords.length} words)`);
 
     // Update UI
     renderVocabulary();
-    updateStats();
+    updateStats(); // Fixed: was updateVocabularyStats()
 }
 
 // Open story in a new page WITH story title
@@ -239,7 +213,7 @@ function openStoryInNewPage(storyId) {
 
     if (story) {
         // Store the story data in localStorage before redirecting
-        localStorage.setItem('french_current_story', JSON.stringify({ // Changed key
+        localStorage.setItem('currentReadingStory', JSON.stringify({
             id: story.id,
             title: story.title,
             level: story.level
@@ -281,7 +255,7 @@ function renderStories(level = 'all') {
     if (filteredStories.length === 0) {
         storiesGrid.innerHTML = `
             <div style="grid-column: 1 / -1; text-align: center; padding: 40px;">
-                <p>Aucune histoire trouvée pour ce niveau.</p>
+                <p>No stories found for this level.</p>
             </div>
         `;
         return;
@@ -297,12 +271,12 @@ function renderStories(level = 'all') {
                 ${renderStoryCover(story)}
             </div>
             <div class="story-content">
-                <span class="story-level ${story.level}">${getFrenchLevel(story.level)}</span>
+                <span class="story-level ${story.level}">${story.level.charAt(0).toUpperCase() + story.level.slice(1)}</span>
                 <h3 class="story-title">${story.title}</h3>
                 <p>${story.content[0].substring(0, 100)}...</p>
                 <div class="story-meta">
-                    <span><i class="fas fa-font"></i> ${story.wordCount || 'N/A'} mots</span>
-                    <span><i class="fas fa-clock"></i> ${Math.ceil((story.wordCount || 100) / 200)} min de lecture</span>
+                    <span><i class="fas fa-font"></i> ${story.wordCount || 'N/A'} words</span>
+                    <span><i class="fas fa-clock"></i> ${Math.ceil((story.wordCount || 100) / 200)} min read</span>
                 </div>
             </div>
         `;
@@ -314,16 +288,6 @@ function renderStories(level = 'all') {
 
         storiesGrid.appendChild(storyCard);
     });
-}
-
-// Helper function to get French level names
-function getFrenchLevel(level) {
-    const levels = {
-        'beginner': 'Débutant',
-        'intermediate': 'Intermédiaire',
-        'advanced': 'Avancé'
-    };
-    return levels[level] || level.charAt(0).toUpperCase() + level.slice(1);
 }
 
 // This function is for backward compatibility (not used with new page approach)
@@ -402,7 +366,7 @@ function setupWordInteractions() {
 // Show dictionary popup for words with translations
 function showDictionary(word, element) {
     const wordData = dictionary[word] || {
-        translation: "Traduction non disponible"
+        translation: "No translation available"
     };
 
     document.getElementById('popupWord').textContent = word;
@@ -411,8 +375,8 @@ function showDictionary(word, element) {
     // Update save button
     const isSaved = savedWords.some(w => w.word === word);
     saveWordBtn.innerHTML = isSaved
-        ? '<i class="fas fa-check"></i> Déjà enregistré'
-        : '<i class="fas fa-bookmark"></i> Enregistrer le mot';
+        ? '<i class="fas fa-check"></i> Already Saved'
+        : '<i class="fas fa-bookmark"></i> Save Word';
     saveWordBtn.disabled = isSaved;
 
     // Position the popup near the word
@@ -440,13 +404,13 @@ function showSentenceTranslation(element) {
     translationPopup.className = 'dictionary-popup';
     translationPopup.innerHTML = `
         <div class="dictionary-header">
-            <div class="dictionary-word">Traduction de la phrase</div>
+            <div class="dictionary-word">Sentence Translation</div>
             <button class="close-popup"><i class="fas fa-times"></i></button>
         </div>
         <div class="dictionary-definition">${sentence}</div>
-        <div class="dictionary-example">Traduction en anglais de la phrase complète</div>
+        <div class="dictionary-example">هذه ترجمة عربية للنص الكامل للجملة</div>
         <div class="dictionary-actions">
-            <button class="close-popup">Fermer</button>
+            <button class="close-popup">Close</button>
         </div>
     `;
 
@@ -481,15 +445,15 @@ function saveCurrentWord() {
 
     // Check if word is already saved
     if (savedWords.some(w => w.word === word)) {
-        showNotification('Mot déjà enregistré !');
+        showNotification('Word already saved!');
         return;
     }
 
     // Get story title
-    let storyTitle = 'Inconnu';
+    let storyTitle = 'Unknown';
 
-    // Get story from localStorage (for reader page) - using new key
-    const storyData = localStorage.getItem('french_current_story');
+    // Get story from localStorage (for reader page)
+    const storyData = localStorage.getItem('currentReadingStory');
     if (storyData) {
         const parsedStory = JSON.parse(storyData);
         storyTitle = parsedStory.title;
@@ -526,11 +490,11 @@ function saveCurrentWord() {
         newWord.translation = wordData.translation;
     } else {
         // For words without translations
-        newWord.translation = "Traduction non disponible";
+        newWord.translation = "No translation available";
     }
 
     savedWords.push(newWord);
-    localStorage.setItem('french_vocabulary', JSON.stringify(savedWords)); // Changed key
+    localStorage.setItem('savedWordsfr', JSON.stringify(savedWords));
     renderVocabulary();
     updateStats();
     hideDictionary();
@@ -546,10 +510,10 @@ function saveCurrentWord() {
         element.classList.remove('unknown');
     }
 
-    // Show confirmation message in French
+    // Show confirmation message
     const message = wordData.translation
-        ? `"${word}" enregistré dans le vocabulaire depuis "${storyTitle}" !`
-        : `"${word}" enregistré dans le vocabulaire depuis "${storyTitle}" (traduction à ajouter plus tard)`;
+        ? `"${word}" saved to vocabulary from "${storyTitle}"!`
+        : `"${word}" saved to vocabulary from "${storyTitle}" (translation will be added later)`;
 
     showNotification(message);
 }
@@ -588,12 +552,14 @@ function showNotification(message) {
 
 // Render vocabulary list
 function renderVocabulary() {
+    if (!vocabularyList) return;
+
     vocabularyList.innerHTML = '';
 
     if (savedWords.length === 0) {
         vocabularyList.innerHTML = `
-            <div class="vocabulary-item" style="justify-content: center; padding: 40px;">
-                <p>Aucun mot enregistré. Cliquez sur des mots dans les histoires pour les ajouter à votre vocabulaire.</p>
+            <div style="text-align: center; padding: 40px; color: var(--text-light);">
+                <p>No words saved yet. Click on words in stories to add them to your vocabulary.</p>
             </div>
         `;
         return;
@@ -603,9 +569,12 @@ function renderVocabulary() {
         const item = document.createElement('div');
         item.className = 'vocabulary-item';
 
-        // Add warning badge for words without translations
         const translationBadge = !word.hasTranslation
-            ? `<span class="no-translation-badge" style="background: #f59e0b; color: white; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; margin-left: 8px;">Pas de traduction</span>`
+            ? `<span class="no-translation-badge" style="background: #f59e0b; color: white; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; margin-left: 8px;">No Translation</span>`
+            : '';
+
+        const masteredBadge = word.status === 'mastered'
+            ? `<span class="mastered-badge" style="background: rgb(13, 167, 116); color: white; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; margin-left: 8px;">Mastered</span>`
             : '';
 
         item.innerHTML = `
@@ -614,14 +583,18 @@ function renderVocabulary() {
                     <span class="word-text">${word.word}</span>
                     <span class="word-translation">${word.translation}</span>
                     ${translationBadge}
+                    ${masteredBadge}
                 </div>
-                ${word.story ? `<div class="word-story" style="font-size: 0.8rem; color: var(--text-light); margin-top: 5px;">De: ${word.story}</div>` : ''}
+                ${word.story ? `<div class="word-story" style="font-size: 0.8rem; color: var(--text-light); margin-top: 5px;">From: ${word.story}</div>` : ''}
+                <div class="word-date" style="font-size: 0.7rem; color: var(--text-lighter); margin-top: 3px;">
+                    Added: ${new Date(word.added || word.date).toLocaleDateString()}
+                </div>
             </div>
             <div class="word-actions">
-                <button title="Marquer comme connu" data-index="${index}">
+                <button title="Mark as mastered" data-index="${index}">
                     <i class="fas fa-check"></i>
                 </button>
-                <button title="Supprimer" data-index="${index}">
+                <button title="Delete" data-index="${index}">
                     <i class="fas fa-trash"></i>
                 </button>
             </div>
@@ -635,7 +608,7 @@ function renderVocabulary() {
         button.addEventListener('click', (e) => {
             const index = parseInt(e.currentTarget.dataset.index);
             if (e.currentTarget.querySelector('.fa-check')) {
-                markAsKnown(index);
+                markAsMastered(index);
             } else if (e.currentTarget.querySelector('.fa-trash')) {
                 deleteWord(index);
             }
@@ -647,8 +620,8 @@ function renderVocabulary() {
 function markAsKnown(index) {
     savedWords[index].status = 'known';
     savedWords[index].mastered = new Date().toISOString();
-    localStorage.setItem('french_vocabulary', JSON.stringify(savedWords)); // Changed key
-    showNotification('Mot marqué comme maîtrisé !');
+    localStorage.setItem('savedWordsfr', JSON.stringify(savedWords));
+    showNotification('Word marked as mastered!');
     renderVocabulary();
     updateStats();
     updateFlashcardStats(); // Also update flashcard stats
@@ -658,13 +631,13 @@ function markAsKnown(index) {
 function deleteWord(index) {
     const word = savedWords[index].word;
     savedWords.splice(index, 1);
-    localStorage.setItem('french_vocabulary', JSON.stringify(savedWords)); // Changed key
+    localStorage.setItem('savedWordsfr', JSON.stringify(savedWords));
     renderVocabulary();
     updateStats();
     updateFlashcardStats(); // Also update flashcard stats
 
-    // Show deletion confirmation in French
-    showNotification(`"${word}" supprimé du vocabulaire`);
+    // Show deletion confirmation
+    showNotification(`"${word}" removed from vocabulary`);
 }
 
 // Update vocabulary statistics
@@ -688,7 +661,7 @@ function updateStats() {
 function toggleTheme() {
     theme = theme === 'light' ? 'dark' : 'light';
     applyTheme();
-    localStorage.setItem('french_theme', theme); // Changed key
+    localStorage.setItem('theme', theme);
 }
 
 // Apply current theme
@@ -734,19 +707,19 @@ function toggleLineSpacing() {
 // Toggle audio (text-to-speech)
 function toggleAudio() {
     // In a real app, this would use the Web Speech API
-    alert('La synthèse vocale jouerait ici. Cette fonctionnalité nécessite une implémentation API TTS réelle.');
+    alert('Text-to-speech would play here. This feature requires a real TTS API implementation.');
     listenBtn.classList.toggle('active');
 }
 
 // Export vocabulary as CSV file
 function exportVocabulary() {
     if (savedWords.length === 0) {
-        showNotification('Aucun vocabulaire à exporter !');
+        showNotification('No vocabulary to export!');
         return;
     }
 
-    // Create CSV content with headers in French
-    const headers = ['Mot', 'Traduction', 'Statut', 'Histoire', 'Date d\'ajout'];
+    // Create CSV content with headers
+    const headers = ['Word', 'Translation', 'Status', 'Story', 'Date Added'];
 
     // Create CSV rows
     const csvRows = [
@@ -755,9 +728,9 @@ function exportVocabulary() {
             return [
                 `"${word.word || ''}"`,
                 `"${(word.translation || '').replace(/"/g, '""')}"`, // Escape quotes in CSV
-                `"${getFrenchStatus(word.status)}"`,
+                `"${word.status || ''}"`,
                 `"${(word.story || '').replace(/"/g, '""')}"`,
-                `"${word.added ? new Date(word.added).toLocaleDateString('fr-FR') : ''}"`
+                `"${word.added ? new Date(word.added).toLocaleDateString('en-US') : ''}"`
             ].join(',');
         })
     ];
@@ -778,7 +751,7 @@ function exportVocabulary() {
     // Create filename with current date
     const date = new Date();
     const formattedDate = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}-${date.getDate().toString().padStart(2, '0')}`;
-    link.setAttribute('download', `vocabulaire_francais_${formattedDate}.csv`);
+    link.setAttribute('download', `my_vocabulary_${formattedDate}.csv`);
 
     // Hide the link and trigger download
     link.style.visibility = 'hidden';
@@ -789,17 +762,19 @@ function exportVocabulary() {
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
 
-    // Show success message in French
-    showNotification(`Vocabulaire exporté avec succès ! (${savedWords.length} mots)`);
+    // Show success message
+    showNotification(`Vocabulary exported successfully! (${savedWords.length} words)`);
 }
 
-// Helper function to get French status
-function getFrenchStatus(status) {
-    const statusMap = {
-        'saved': 'Enregistré',
-        'known': 'Maîtrisé'
-    };
-    return statusMap[status] || status;
+// Helper function to format date
+function formatDateForExport(dateString) {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric'
+    });
 }
 
 // =============== FLASHCARD FUNCTIONS ===============
@@ -839,7 +814,7 @@ function loadFlashcards() {
     updateFlashcardStats();
 }
 
-// Load a specific card
+// في دالة loadCard
 function loadCard(index) {
     if (index >= sessionCards.length) {
         showSessionComplete();
@@ -848,25 +823,88 @@ function loadCard(index) {
     
     const card = sessionCards[index];
     
-    // Front side (word)
-    flashcardWord.textContent = card.word;
-    flashcardTranslation.textContent = card.translation || "Traduction non disponible";
+    // تنسيق التواريخ
+    const formatDate = (dateString, short = false) => {
+        if (!dateString) return 'Not set';
+        const date = new Date(dateString);
+        if (short) {
+            return date.toLocaleDateString('en-US', {
+                month: 'short',
+                day: 'numeric'
+            });
+        }
+        return date.toLocaleDateString('en-US', {
+            month: 'short',
+            day: 'numeric',
+            year: 'numeric'
+        });
+    };
     
-    // Back side details
-    flashcardStory.textContent = card.story ? `De: ${card.story}` : "";
+    const addedDate = formatDate(card.added);
+   
+    
+    // Front side (word) مع التاريخ
+    flashcardWord.textContent = card.word;
+    flashcardTranslation.textContent = card.translation || "No translation available";
+    
+    // Back side details مع التواريخ
+    flashcardStory.innerHTML = `
+        <div class="card-dates">
+            <div style="margin-bottom: 10px;">
+                <div style="font-weight: 600; color: var(--text-color); margin-bottom: 5px;">
+                    <i class="fas fa-book" style="margin-right: 8px;"></i>
+                    ${card.story ? `From: ${card.story}` : "Unknown Story"}
+                </div>
+                
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-top: 10px;">
+                    ${card.added ? `
+                        <div class="date-item">
+                            <div style="font-size: 0.75rem; color: var(--text-light); margin-bottom: 2px;">
+                                <i class="far fa-calendar-plus"></i> Added
+                            </div>
+                            <div style="font-size: 0.85rem; font-weight: 500;">
+                                ${addedDate}
+                            </div>
+                        </div>
+                    ` : ''}
+                    
+                   
+            </div>
+        </div>
+    `;
     
     // Reset card to front side
     flashcard.classList.remove('flipped');
+    
+    // إضافة event listener لزر التعديل
+    setTimeout(() => {
+        const editBtn = flashcardStory.querySelector('.edit-dates');
+        if (editBtn) {
+            editBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const cardIndex = parseInt(e.currentTarget.dataset.cardIndex);
+                openFlashcardDatePicker(cardIndex);
+            });
+        }
+    }, 100);
     
     // Update progress
     updateProgress();
 }
 
+// دالة للتحقق إذا كان الاستعراض متأخراً
+function isReviewDue(dateString) {
+    if (!dateString) return false;
+    const reviewDate = new Date(dateString);
+    const today = new Date();
+    return reviewDate < today;
+}
+
 // Show no cards message
 function showNoCardsMessage() {
-    flashcardWord.textContent = "Aucune carte disponible";
-    flashcardTranslation.textContent = "Ajoutez des mots des histoires pour les pratiquer";
-    flashcardStory.textContent = "Lisez des histoires et enregistrez des mots pour les pratiquer ici";
+    flashcardWord.textContent = "No cards available";
+    flashcardTranslation.textContent = "Add words from stories to practice";
+    flashcardStory.textContent = "Read stories and save words to practice them here";
     
     progressText.textContent = "0/0";
     progressFill.style.width = "0%";
@@ -874,9 +912,9 @@ function showNoCardsMessage() {
 
 // Show session complete message
 function showSessionComplete() {
-    flashcardWord.textContent = "Session terminée ! 🎉";
-    flashcardTranslation.textContent = "Excellent travail !";
-    flashcardStory.textContent = `Vous avez révisé ${cardsReviewed} cartes`;
+    flashcardWord.textContent = "Session Complete! 🎉";
+    flashcardTranslation.textContent = "Great job!";
+    flashcardStory.textContent = `You reviewed ${cardsReviewed} cards`;
     
     progressText.textContent = `${cardsReviewed}/${cardsReviewed}`;
     progressFill.style.width = "100%";
@@ -927,7 +965,7 @@ function setupFlashcardListeners() {
         });
     }
     
-    // Card review buttons - updated with French labels
+    // Card review buttons
     if (cardAgain) cardAgain.addEventListener('click', () => reviewCard(1)); // Again (1 day)
     if (cardHard) cardHard.addEventListener('click', () => reviewCard(3)); // Hard (3 days)
     if (cardGood) cardGood.addEventListener('click', () => reviewCard(7)); // Good (7 days)
@@ -963,8 +1001,8 @@ function reviewCard(daysToAdd) {
             savedWords[wordIndex].mastered = new Date().toISOString();
         }
         
-        // Save to localStorage with new key
-        localStorage.setItem('french_vocabulary', JSON.stringify(savedWords)); // Changed key
+        // Save to localStorage
+        localStorage.setItem('savedWordsfr', JSON.stringify(savedWords));
     }
     
     // Move to next card
@@ -1003,13 +1041,13 @@ function shuffleFlashcards() {
         cardsReviewed = 0;
         loadCard(currentCardIndex);
         
-        showNotification('Cartes mélangées !');
+        showNotification('Cards shuffled!');
     }
 }
 
 // Reset all card progress
 function resetCardProgress() {
-    const confirmed = confirm("Réinitialiser la progression de toutes les cartes ? Cela ramènera tous les mots à l'état 'à réviser'.");
+    const confirmed = confirm("Reset all card progress? This will set all words back to 'due' status.");
     
     if (confirmed) {
         savedWords.forEach(word => {
@@ -1018,13 +1056,13 @@ function resetCardProgress() {
             delete word.mastered;
         });
         
-        localStorage.setItem('french_vocabulary', JSON.stringify(savedWords)); // Changed key
+        localStorage.setItem('savedWordsfr', JSON.stringify(savedWords));
         
         loadFlashcards();
         updateFlashcardStats();
         updateStats();
         
-        showNotification('Progression des cartes réinitialisée !');
+        showNotification('Card progress reset!');
     }
 }
 

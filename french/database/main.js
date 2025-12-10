@@ -11,14 +11,14 @@ window.storiesData = {
             "sound": "../sounds/story1.mp3",
             "dictionaries": ["../Dictionarys/story1.json", "../Dictionarys/main.json."],
             "content": [
-                "Bonjour et bienvenue sur IStories ! Ce site web a été créé par Ammar Chacal pour aider les gens à apprendre les langues de manière amusante et interactive. Grâce à ces histoires interactives, vous pouvez améliorer naturellement votre vocabulaire et votre compréhension.",
-                "Chaque histoire est conçue pour différents niveaux d’apprentissage – débutant, intermédiaire et avancé. Les histoires pour débutants utilisent des mots simples et des phrases courtes, parfaites pour ceux qui commencent leur parcours linguistique.",
-                "En lisant, vous pouvez cliquer sur n’importe quel mot pour voir sa traduction et sa définition. Cette fonctionnalité vous aide à apprendre du vocabulaire en contexte, ce qui est bien plus efficace que de mémoriser des listes de mots.",
-                "Les histoires couvrent divers sujets et genres, allant des situations quotidiennes aux aventures passionnantes. Cette variété vous assure de rencontrer différents types de vocabulaire et de structures grammaticales.",
-                "Lire régulièrement est l’un des meilleurs moyens d’améliorer vos compétences linguistiques. Avec IStories, vous pouvez pratiquer la compréhension écrite tout en profitant de récits intéressants.",
-                "N’oubliez pas que l’apprentissage d’une langue demande du temps et de la patience. Ne vous inquiétez pas si vous ne comprenez pas chaque mot au début. Utilisez la fonction de traduction et essayez de saisir le sens général de chaque paragraphe.",
-                "Nous recommandons de lire une histoire par jour et de revoir le vocabulaire appris. Une pratique régulière est la clé pour progresser dans n’importe quelle langue.",
-                "Merci d’avoir choisi IStories pour votre apprentissage linguistique. Nous espérons que ces histoires vous plairont et vous aideront à atteindre vos objectifs."
+                "Bonjour et bienvenue sur <span class='mark'>IStories</span> ! Ce site web a été créé par Ammar Chacal pour aider les gens à apprendre les langues de manière amusante et interactive. <img src='../../imges/cover.jpg' alt='Example'> Grâce à ces histoires interactives, vous pouvez améliorer naturellement votre <span class='mark'>vocabulaire</span> et votre <span class='mark'>compréhension</span>.",
+                "Chaque histoire est conçue pour différents niveaux d’apprentissage – débutant, intermédiaire et avancé. Les histoires pour débutants utilisent des mots simples et des phrases courtes, parfaites pour ceux qui commencent leur parcours <span class='mark'>linguistique</span>.",
+                "En lisant, vous pouvez cliquer sur n’importe quel mot pour voir sa traduction et sa <span class='mark'>définition</span>. Cette fonctionnalité vous aide à apprendre du vocabulaire en contexte.",
+                "Les histoires couvrent divers sujets et genres, allant des situations quotidiennes aux aventures <span class='mark'>passionnantes</span>. Cette variété vous assure de rencontrer différents types de vocabulaire.",
+                "Lire régulièrement est l’un des meilleurs moyens d’améliorer vos compétences linguistiques. Avec IStories, vous pouvez pratiquer la compréhension écrite tout en profitant de <span class='mark'>récits</span> intéressants.",
+                "N’oubliez pas que l’apprentissage d’une langue demande du temps et de la <span class='mark'>patience</span>. Ne vous inquiétez pas si vous ne comprenez pas chaque mot au début.",
+                "Nous recommandons de lire une histoire par jour et de revoir le vocabulaire appris. Une pratique régulière est la clé pour <span class='mark'>progresser</span> dans n’importe quelle langue.",
+                "Merci d’avoir choisi IStories. Nous espérons que ces histoires vous plairont et vous aideront à atteindre vos <span class='mark'>objectifs</span>."
             ],
             "wordCount": 230,
             "audio": null
@@ -30,7 +30,7 @@ window.storiesData = {
             "level": "beginner",
             "cover": "🎵",
             "coverType": "emoji",
-            "sound": "../sounds/story4.mp3",
+            "sound": "../sounds/story2.mp3",
             "dictionaries": ["../Dictionarys/story2.json", "../Dictionarys/main.json."],
             "content": [
                 "Dans un petit village entouré de magnifiques montagnes vivait une jeune fille nommée Lily. Elle aimait la musique plus que tout au monde. Chaque jour, elle s’asseyait près de la rivière pour écouter les sons de la nature.",
@@ -73,6 +73,5 @@ window.storiesData = {
             "wordCount": 480,
             "audio": null
         }
-
     ]
 };
