@@ -447,7 +447,6 @@ nav a.active {
 
 .story-content {
     padding: 20px;
-    color: white;
     flex-grow: 1; /* هذا يأخذ المساحة المتبقية */
     display: flex;
     flex-direction: column;
