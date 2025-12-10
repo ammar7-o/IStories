@@ -284,8 +284,8 @@ function displayStory(story) {
 function makeWordsClickable(htmlString, options = {}) {
     const debug = !!options.debug;
 
-    // regex لكلمة فرنسية/انجليزية مع دعم apostrophes و hyphen
-    const wordPattern = /[A-Za-zÀ-ÖØ-öø-ÿ0-9]+(?:[’'\-][A-Za-zÀ-ÖØ-öø-ÿ0-9]+)*/;
+    // regex لكلمة فرنسية/انجليزية مع دعم apostrophes في البداية والنهاية والوسط
+    const wordPattern = /[A-Za-zÀ-ÖØ-öø-ÿ0-9’']+(?:[’'\-][A-Za-zÀ-ÖØ-öø-ÿ0-9]+)*/;
 
     // نستخدم عنصر مؤقت لعمل parse للـ HTML بأمان
     const container = document.createElement('div');
@@ -294,48 +294,108 @@ function makeWordsClickable(htmlString, options = {}) {
     // عقدة تسمح بتجاوز عناصر معينة
     const skipTags = new Set(['SCRIPT', 'STYLE', 'CODE', 'PRE', 'TEXTAREA']);
 
+    // دالة لتوحيد apostrophes (تحويل كل الـ apostrophes إلى نوع واحد)
+    function normalizeApostrophe(word) {
+        return word.replace(/[’']/g, "'"); // تحويل كل الـ apostrophes إلى '
+    }
+
     // دالة للتحقق مما إذا كانت الكلمة لديها ترجمة
     function hasTranslation(word) {
-        const cleanWord = word.toLowerCase();
-        
-        // تحقق مباشر من القاموس
-        if (dictionary[cleanWord]) {
+        // أولاً: تحقق بالكلمة كما هي
+        if (dictionary[word.toLowerCase()]) {
             return true;
         }
         
-        // محاولات بديلة
-        // 1. بدون فاصلة عليا
-        if (dictionary[cleanWord.replace(/['’]/g, '')]) {
+        // توحيد apostrophes وتحويل إلى حروف صغيرة
+        const normalizedWord = normalizeApostrophe(word.toLowerCase());
+        
+        // تحقق بالكلمة مع apostrophe موحد
+        if (dictionary[normalizedWord]) {
             return true;
         }
         
-        // 2. بصيغة المفرد إذا كانت تنتهي بـ s
-        if (cleanWord.endsWith('s')) {
-            const singular = cleanWord.slice(0, -1);
+        // 2. تحقق بالكلمة بدون أي apostrophe
+        const withoutAnyApostrophe = normalizedWord.replace(/'/g, '');
+        if (dictionary[withoutAnyApostrophe]) {
+            return true;
+        }
+        
+        // 3. معالجة الكلمات مع apostrophe في المنتصف (مثل lorsqu'ils)
+        if (normalizedWord.includes("'")) {
+            const parts = normalizedWord.split("'");
+            
+            // جرب كل الإمكانيات:
+            
+            // أ) الكلمة بدون apostrophe (lorsquils)
+            const joined = parts.join('');
+            if (dictionary[joined]) {
+                return true;
+            }
+            
+            // ب) الجزء الأول فقط (lorsqu) إذا كان موجودًا
+            if (parts[0] && dictionary[parts[0]]) {
+                return true;
+            }
+            
+            // ج) الجزء الثاني فقط (ils) إذا كان موجودًا
+            if (parts[1] && dictionary[parts[1]]) {
+                return true;
+            }
+            
+            // د) جرب أشكال أخرى مع apostrophe مختلف
+            // مثل: lorsqu'ils -> l + ils
+            if (parts[0] && parts[1]) {
+                const firstPart = parts[0];
+                const secondPart = parts[1];
+                
+                // حاول مع l في البداية إذا كان الجزء الأول ينتهي بـ l
+                if (firstPart.endsWith('l') || firstPart.endsWith('L')) {
+                    const withL = firstPart.slice(-1) + "'" + secondPart;
+                    if (dictionary[withL]) {
+                        return true;
+                    }
+                }
+            }
+        }
+        
+        // 4. بصيغة المفرد إذا كانت تنتهي بـ s
+        if (normalizedWord.endsWith('s') && !normalizedWord.endsWith("'s")) {
+            const singular = normalizedWord.slice(0, -1);
             if (dictionary[singular]) {
+                return true;
+            }
+            
+            // جرب أيضًا المفرد بدون apostrophe
+            if (dictionary[singular.replace(/'/g, '')]) {
                 return true;
             }
         }
         
-        // 3. بصيغة المفرد إذا كانت تنتهي بـ es
-        if (cleanWord.endsWith('es')) {
-            const singular = cleanWord.slice(0, -2);
+        // 5. بصيغة المفرد إذا كانت تنتهي بـ es
+        if (normalizedWord.endsWith('es') && !normalizedWord.endsWith("'es")) {
+            const singular = normalizedWord.slice(0, -2);
             if (dictionary[singular]) {
+                return true;
+            }
+            if (dictionary[singular.replace(/'/g, '')]) {
                 return true;
             }
         }
         
-        // 4. بدون شرطات للكلمات المركبة
-        if (cleanWord.includes('-')) {
-            const withoutHyphen = cleanWord.replace(/-/g, '');
+        // 6. للكلمات المركبة
+        if (normalizedWord.includes('-')) {
+            const withoutHyphen = normalizedWord.replace(/-/g, '');
             if (dictionary[withoutHyphen]) {
                 return true;
             }
             
             // تحقق من أجزاء الكلمة المركبة
-            const parts = cleanWord.split('-');
+            const parts = normalizedWord.split('-');
             for (let part of parts) {
                 if (dictionary[part]) {
+                    return true;
+                }
+                if (dictionary[part.replace(/'/g, '')]) {
                     return true;
                 }
             }
@@ -346,12 +406,22 @@ function makeWordsClickable(htmlString, options = {}) {
 
     // دالة للتحقق مما إذا تم حفظ الكلمة
     function isWordSaved(word) {
-        const cleanWord = word.toLowerCase();
+        const normalizedWord = normalizeApostrophe(word.toLowerCase());
+        
         return savedWords.some(savedWord => {
             const saved = savedWord.word.toLowerCase();
-            return saved === cleanWord ||
-                   saved === cleanWord.replace(/['’]/g, '') ||
-                   saved === cleanWord.replace(/-/g, '');
+            const savedNormalized = normalizeApostrophe(saved);
+            
+            // مقارنات متعددة
+            if (savedNormalized === normalizedWord) return true;
+            
+            // بدون apostrophe
+            if (savedNormalized.replace(/'/g, '') === normalizedWord.replace(/'/g, '')) return true;
+            
+            // معالجة الكلمات المركبة
+            if (savedNormalized === normalizedWord.replace(/-/g, '')) return true;
+            
+            return false;
         });
     }
 
@@ -390,12 +460,24 @@ function makeWordsClickable(htmlString, options = {}) {
                 // إنشاء عنصر span للكلمة
                 const span = document.createElement('span');
                 span.className = 'word';
-                span.setAttribute('data-word', match.toLowerCase());
-                span.textContent = match;
+                
+                // تخزين الكلمة كما هي
+                const displayWord = match;
+                let dataWord = normalizeApostrophe(match.toLowerCase());
+                
+                span.setAttribute('data-word', dataWord);
+                span.textContent = displayWord;
                 
                 // التحقق من وجود ترجمة وإضافة class مناسب
                 if (!hasTranslation(match)) {
                     span.classList.add('no-translation');
+                    if (debug) {
+                        console.log(`No translation for: "${match}" (normalized: "${dataWord}")`);
+                    }
+                } else {
+                    if (debug) {
+                        console.log(`Found translation for: "${match}" (normalized: "${dataWord}")`);
+                    }
                 }
                 
                 // التحقق إذا تم حفظ الكلمة
@@ -412,7 +494,7 @@ function makeWordsClickable(htmlString, options = {}) {
                 fragments.push(document.createTextNode(text.slice(lastIndex)));
             }
 
-            // إن لم يكن هناك أي مطابقة، نترك النص كما هو
+            // إن لم يكن هناك أي مطابقة، نترك النص كما هي
             if (fragments.length === 0) return;
 
             // استبدال نص العقدة الحالية بالعناصر الجديدة
@@ -441,7 +523,6 @@ function makeWordsClickable(htmlString, options = {}) {
 
     return container.innerHTML;
 }
-
 function processToken(token) {
     // فصل علامات الترقيم الطرفية
     const match = token.match(/^([\w'’\\u0600-\\u06FF\\u0750-\\u077F\\uFB50-\\uFDFF\\uFE70-\\uFEFF-]+)([.,!?;:"]*)$/);
@@ -837,44 +918,59 @@ function removeAll() {
     updateVocabularyStats();
 }
 
-// Export vocabulary as CSV
+// Export vocabulary as CSV file
 function exportVocabulary() {
     if (savedWords.length === 0) {
-        showNotification('No vocabulary to export!', 'info');
+        showNotification('No vocabulary to export!');
         return;
     }
 
-    // Create CSV content
+    // Create CSV content with headers
     const headers = ['Word', 'Translation', 'Status', 'Story', 'Date Added'];
+
+    // Create CSV rows
     const csvRows = [
-        headers.join(','),
+        headers.join(','), // Add headers first
         ...savedWords.map(word => {
             return [
-                `"${word.word}"`,
-                `"${word.translation}"`,
-                `"${word.status || 'saved'}"`,
-                `"${word.story || 'Unknown'}"`,
-                `"${new Date(word.added || word.date).toLocaleDateString()}"`
+                `"${word.word || ''}"`,
+                `"${(word.translation || '').replace(/"/g, '""')}"`, // Escape quotes in CSV
+                `"${word.status || ''}"`,
+                `"${(word.story || '').replace(/"/g, '""')}"`,
+                `"${word.added ? new Date(word.added).toLocaleDateString('en-US') : ''}"`
             ].join(',');
         })
     ];
 
+    // Join rows with newlines
     const csvString = csvRows.join('\n');
+
+    // Create a Blob (file-like object)
     const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
+
+    // Create download URL
     const url = URL.createObjectURL(blob);
 
+    // Create invisible download link
     const link = document.createElement('a');
     link.setAttribute('href', url);
+
+    // Create filename with current date
     const date = new Date();
     const formattedDate = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}-${date.getDate().toString().padStart(2, '0')}`;
     link.setAttribute('download', `my_vocabulary_${formattedDate}.csv`);
 
+    // Hide the link and trigger download
+    link.style.visibility = 'hidden';
     document.body.appendChild(link);
     link.click();
+
+    // Clean up
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
 
-    showNotification(`Vocabulary exported! (${savedWords.length} words)`, 'success');
+    // Show success message
+    showNotification(`Vocabulary exported successfully! (${savedWords.length} words)`);
 }
 
 // ----------------------------------------------------
