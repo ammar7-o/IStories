@@ -703,9 +703,7 @@ header {
 }
 
 #sound {
-    width: 50%;
-    background-color: black;
-}
+    width: 50%;}
 
 /* تصميم متجاوب */
 @media (max-width: 768px) {
