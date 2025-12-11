@@ -78,8 +78,7 @@ window.storiesData = {
             "id": 4,
             "title": "Le Petit Jardin",
             "level": "beginner",
-            "cover": "https://ammar7-o.github.io/IStories/imges/garden.jpg",
-            "coverType": "image",
+            "cover": "../imges/garden.jpg" ,         "coverType": "image",
             "sound": "",
             "dictionaries": ["../Dictionarys/main.json", "../Dictionarys/story4.json"],
             "content": [
