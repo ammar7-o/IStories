@@ -5,8 +5,8 @@ let fontSize = 1.2; // rem
 let lineHeight = 1.8;
 let isAudioPlaying = false;
 let currentStory = null;
-let currentWordData = null; // سيخزن الكلمة الحالية المعروضة في النافذة المنبثقة
-let dictionary = {}; // Dictionary will be loaded from JSON file
+let currentWordData = null; 
+let dictionary = {}; 
 
 // DOM elements
 const storyTitle = document.getElementById('storyTitle');
@@ -46,17 +46,66 @@ function getStoryIdFromUrl() {
 }
 
 // ----------------------------------------------------
-// 📚 وظائف القواميس المتعددة
+// 📚 وظائف القواميس والتوحيد
 // ----------------------------------------------------
 
-// Load dictionaries from JSON file(s)
+/**
+ * 🚨 تعديل: هذه الدالة الآن لا تقوم بتوحيد الفاصلة العلوية، بل تعيد الكلمة كما هي.
+ */
+function normalizeApostrophe(word) {
+    // ترك الفاصلة العلوية كما هي (مثل ' و ’)
+    return word; 
+}
+
+// دالة لإزالة علامات التشكيل
+function removeAccents(str) {
+    return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+}
+
+/**
+ * المفتاح القياسي للبحث (Standard Lookup Key):
+ * يحول إلى أحرف صغيرة ويحافظ على الفاصلة (سواء ' أو ’) والتشكيل.
+ * مثال: L’océan -> l’océan
+ */
+function getStandardKey(word) {
+    let key = word.toLowerCase();
+    // تم إزالة استدعاء normalizeApostrophe لترك الفاصلة الأصلية
+    return key.trim();
+}
+
+/**
+ * المفتاح الموحد للبحث (Normalized Lookup Key):
+ * يحول إلى أحرف صغيرة، يحافظ على الفاصلة، ويزيل التشكيل.
+ * مثال: L’océan -> l’ocean
+ */
+function getNormalizedKey(word) {
+    let key = getStandardKey(word); // l’océan
+    key = removeAccents(key);       // l’ocean
+    return key.trim();
+}
+
+/**
+ * المفتاح الموحد الأقصى (Aggressive Key): 
+ * يحول إلى أحرف صغيرة، يحافظ على الفاصلة، يزيل التشكيل والواصلات.
+ */
+function getAggressiveKey(word) {
+    let key = word.toLowerCase();
+    key = removeAccents(key);       
+    key = key.replace(/-/g, '');    
+    // ترك الفاصلة العلوية
+    return key.trim();
+}
+
+
+/**
+ * Load dictionaries from JSON file(s).
+ * يتضمن تنظيف مفاتيح القاموس من الفراغات الزائدة أثناء التحميل.
+ */
 async function loadDictionary(dictionaryPaths) {
-    // التأكد من أن dictionaryPaths مصفوفة
     if (!Array.isArray(dictionaryPaths)) {
         dictionaryPaths = dictionaryPaths ? [dictionaryPaths] : [];
     }
     
-    // إعادة تعيين القاموس قبل التحميل
     dictionary = {}; 
     
     if (dictionaryPaths.length === 0) {
@@ -66,7 +115,7 @@ async function loadDictionary(dictionaryPaths) {
 
     try {
         const loadPromises = dictionaryPaths.map(async (path) => {
-            if (!path) return {}; // تجاهل المسارات الفارغة
+            if (!path) return {}; 
 
             try {
                 const response = await fetch(path);
@@ -74,8 +123,10 @@ async function loadDictionary(dictionaryPaths) {
                     throw new Error(`Failed to load dictionary: ${response.status} from ${path}`);
                 }
                 const dictContent = await response.json();
+                
                 console.log(`Loaded ${Object.keys(dictContent).length} words from: ${path}`);
                 return dictContent;
+
             } catch (error) {
                 console.error(`Error loading dictionary from ${path}:`, error);
                 return {};
@@ -84,9 +135,17 @@ async function loadDictionary(dictionaryPaths) {
 
         const allDictionaries = await Promise.all(loadPromises);
 
-        // دمج جميع القواميس: (القواميس الأحدث في المصفوفة تطغى على الأقدم)
+        // دمج جميع القواميس وتجريد المفاتيح من الفراغات الزائدة
         dictionary = allDictionaries.reduce((mergedDict, currentDict) => {
-            return { ...mergedDict, ...currentDict };
+            const trimmedDict = {};
+            for (const key in currentDict) {
+                if (currentDict.hasOwnProperty(key)) {
+                    // إزالة الفراغات من المفتاح أثناء التحميل
+                    const trimmedKey = key.trim(); 
+                    trimmedDict[trimmedKey] = currentDict[key];
+                }
+            }
+            return { ...mergedDict, ...trimmedDict };
         }, {});
 
         console.log(`Final merged dictionary size: ${Object.keys(dictionary).length} words.`);
@@ -95,7 +154,6 @@ async function loadDictionary(dictionaryPaths) {
         console.error('Error during dictionary loading process:', error);
     }
     
-    // Fallback إذا لم يتم تحميل أي قاموس
     if (Object.keys(dictionary).length === 0) {
         console.warn('No dictionaries loaded, using empty dictionary');
         dictionary = {};
@@ -105,52 +163,43 @@ async function loadDictionary(dictionaryPaths) {
 // Load story from database files by ID
 async function loadStory() {
     try {
-        // إظهار مؤشر التحميل
         storyTitle.textContent = 'Loading...';
         storyText.innerHTML = '<div class="loading" style="text-align: center; padding: 40px; color: var(--text-light);">Loading story...</div>';
         
         const storyId = getStoryIdFromUrl();
-        const fallbackId = 1; // ID of the default fallback story
+        const fallbackId = 1; 
 
-        // 1. First check if stories are already loaded in window.storiesData
         if (typeof window.storiesData !== 'undefined') {
             const allStories = window.storiesData.stories || window.storiesData;
             currentStory = allStories.find(s => s.id === storyId);
             if (currentStory) {
-                // ✅ استخدام الحقل 'dictionaries'
                 await loadDictionary(currentStory.dictionaries);
                 displayStory(currentStory);
                 return;
             }
         }
 
-        // 2. If not loaded, try to load from external files (main.js)
         const mainResponse = await fetch('../database/main.js');
         const mainText = await mainResponse.text();
 
-        // Try safer parsing instead of eval
         const mainMatch = mainText.match(/window\.storiesData\s*=\s*({[\s\S]*?});/);
         if (mainMatch) {
             try {
-                // Remove the assignment part and parse as JSON
                 const jsonStr = mainMatch[1].replace(/window\.storiesData\s*=\s*/, '');
                 window.storiesData = JSON.parse(jsonStr);
             } catch (e) {
-                // Fallback to eval if JSON.parse fails
                 eval(mainMatch[0]);
             }
             
             const allStories = window.storiesData.stories || window.storiesData;
             currentStory = allStories.find(s => s.id === storyId);
             if (currentStory) {
-                // ✅ استخدام الحقل 'dictionaries'
                 await loadDictionary(currentStory.dictionaries);
                 displayStory(currentStory);
                 return;
             }
         }
 
-        // 3. Try database/more.js
         const moreResponse = await fetch('../database/more.js');
         const moreText = await moreResponse.text();
         const moreMatch = moreText.match(/window\.storiesData\s*=\s*({[\s\S]*?});/);
@@ -165,16 +214,13 @@ async function loadStory() {
             const allStories = window.storiesData.stories || window.storiesData;
             currentStory = allStories.find(s => s.id === storyId);
             if (currentStory) {
-                // ✅ استخدام الحقل 'dictionaries'
                 await loadDictionary(currentStory.dictionaries);
                 displayStory(currentStory);
                 return;
             }
         }
 
-        // 4. If still not found, use fallback story
         currentStory = getFallbackStory(storyId);
-        // ✅ استخدام الحقل 'dictionaries' في القصة الاحتياطية (مع Fallback للحقل القديم)
         if (currentStory.dictionaries || currentStory.dictionary) {
             await loadDictionary(currentStory.dictionaries || currentStory.dictionary);
         }
@@ -192,7 +238,6 @@ async function loadStory() {
 // 🧭 وظائف حفظ واستعادة موقع القراءة
 // ----------------------------------------------------
 
-// حفظ موقع القراءة في localStorage
 function saveReadingPosition() {
     if (currentStory && window.scrollY > 0) {
         const positionData = {
@@ -203,13 +248,11 @@ function saveReadingPosition() {
     }
 }
 
-// استعادة موقع القراءة المحفوظ
 function restoreReadingPosition() {
     const savedPosition = JSON.parse(localStorage.getItem('readingPosition'));
     const storyId = getStoryIdFromUrl();
 
     if (savedPosition && savedPosition.id === storyId) {
-        // التأكد من أن المحتوى قد تم تحميله بالكامل
         const checkContentLoaded = () => {
             if (document.readyState === 'complete' && storyText.innerHTML && !storyText.innerHTML.includes('loading')) {
                 window.scrollTo(0, savedPosition.scrollPosition);
@@ -226,7 +269,6 @@ function restoreReadingPosition() {
 // 📝 وظائف عرض القصة والقائمة الاحتياطية
 // ----------------------------------------------------
 
-// Fallback story if loading fails
 function getFallbackStory(storyId) {
     const fallbackStories = {
         1: {
@@ -263,305 +305,173 @@ function getFallbackStory(storyId) {
     return fallbackStories[storyId] || fallbackStories[1];
 }
 
-// Display story with clickable words
 function displayStory(story) {
     storyTitle.textContent = story.title;
     storyText.innerHTML = '';
-    
-    if (sound && story.sound) sound.src = story.sound;
+
+    // التحكم في الصوت حسب وجود src أو لا
+    if (sound) {
+        if (story.sound && story.sound.trim() !== "") {
+            sound.src = story.sound;
+            sound.style.display = "block";      // إظهار الصوت
+        } else {
+            sound.removeAttribute("src");
+            sound.style.display = "none";       // إخفاؤه إذا لا توجد قراءة
+        }
+    }
+
     if (lvl && story.level) lvl.innerHTML = story.level;
 
     story.content.forEach(paragraph => {
         const p = document.createElement('div');
         p.className = 'paragraph';
-        p.innerHTML = makeWordsClickable(paragraph);
+        p.innerHTML = makeWordsClickable(paragraph, { debug: false });
         storyText.appendChild(p);
     });
 
     setupWordInteractions();
     updateReadingProgress();
 }
+
+
+/**
+ * Function makeWordsClickable(htmlString, options = {})
+ * تستخدم المفتاح الأساسي للبحث (الذي يحافظ على الفاصلة العلوية الأصلية والتشكيل)
+ */
 function makeWordsClickable(htmlString, options = {}) {
+    if (typeof dictionary === 'undefined') {
+        console.error("Error: The 'dictionary' object is not defined. Cannot proceed.");
+        return htmlString;
+    }
+
     const debug = !!options.debug;
+    // regex لكلمة فرنسية/انجليزية مع دعم apostrophes والواصلات.
+    const wordPattern = /[A-Za-zÀ-ÖØ-öø-ÿ0-9’']+(?:[’'\-][A-Za-zÀ-ÖØ-öø-ÿ0-9]+)*/g;
 
-    // regex لكلمة فرنسية/انجليزية مع دعم apostrophes في البداية والنهاية والوسط
-    const wordPattern = /[A-Za-zÀ-ÖØ-öø-ÿ0-9’']+(?:[’'\-][A-Za-zÀ-ÖØ-öø-ÿ0-9]+)*/;
-
-    // نستخدم عنصر مؤقت لعمل parse للـ HTML بأمان
     const container = document.createElement('div');
     container.innerHTML = htmlString;
 
-    // عقدة تسمح بتجاوز عناصر معينة
     const skipTags = new Set(['SCRIPT', 'STYLE', 'CODE', 'PRE', 'TEXTAREA']);
 
-    // دالة لتوحيد apostrophes (تحويل كل الـ apostrophes إلى نوع واحد)
-    function normalizeApostrophe(word) {
-        return word.replace(/[’']/g, "'"); // تحويل كل الـ apostrophes إلى '
-    }
-
-    // دالة للتحقق مما إذا كانت الكلمة لديها ترجمة
+    
+    /**
+     * دالة للتحقق مما إذا كانت الكلمة لديها ترجمة في القاموس.
+     */
     function hasTranslation(word) {
-        // أولاً: تحقق بالكلمة كما هي
-        if (dictionary[word.toLowerCase()]) {
+        
+        // 1. المفتاح القياسي (يحافظ على الفاصلة الأصلية والتشكيل)
+        const standardKey = getStandardKey(word);
+        
+        // 2. المفتاح الموحد (يحافظ على الفاصلة الأصلية ويزيل التشكيل)
+        const normalizedKey = getNormalizedKey(word);
+
+        if (debug) console.log(`--- Checking: ${word} (Standard Key: ${standardKey}, Normalized Key: ${normalizedKey}) ---`);
+
+        // --- أ. البحث بالمفتاح القياسي (الأولوية الأولى: l’océan) ---
+        if (dictionary[standardKey]) {
+            if (debug) console.log(`SUCCESS: Found match with STANDARD KEY: ${standardKey}`);
             return true;
         }
-        
-        // توحيد apostrophes وتحويل إلى حروف صغيرة
-        const normalizedWord = normalizeApostrophe(word.toLowerCase());
-        
-        // تحقق بالكلمة مع apostrophe موحد
-        if (dictionary[normalizedWord]) {
+
+        // --- ب. البحث بالمفتاح الموحد (الأولوية الثانية: l’ocean) ---
+        if (standardKey !== normalizedKey && dictionary[normalizedKey]) {
+            if (debug) console.log(`SUCCESS: Found match with NORMALIZED KEY: ${normalizedKey}`);
             return true;
         }
+
+
+        // --- ت. معالجة صيغة الجمع/المفرد ---
         
-        // 2. تحقق بالكلمة بدون أي apostrophe
-        const withoutAnyApostrophe = normalizedWord.replace(/'/g, '');
-        if (dictionary[withoutAnyApostrophe]) {
-            return true;
-        }
-        
-        // 3. معالجة الكلمات مع apostrophe في المنتصف (مثل lorsqu'ils)
-        if (normalizedWord.includes("'")) {
-            const parts = normalizedWord.split("'");
-            
-            // جرب كل الإمكانيات:
-            
-            // أ) الكلمة بدون apostrophe (lorsquils)
-            const joined = parts.join('');
-            if (dictionary[joined]) {
+        const aggressiveKey = getAggressiveKey(word);
+
+        // الكلمة بدون 'es'
+        if (aggressiveKey.endsWith('es') && aggressiveKey.length > 2) {
+            const singularAggressive = aggressiveKey.slice(0, -2);
+            if (dictionary[singularAggressive]) {
+                if (debug) console.log(`SUCCESS: Found singular match (aggressive - es): ${singularAggressive}`);
                 return true;
             }
-            
-            // ب) الجزء الأول فقط (lorsqu) إذا كان موجودًا
-            if (parts[0] && dictionary[parts[0]]) {
-                return true;
-            }
-            
-            // ج) الجزء الثاني فقط (ils) إذا كان موجودًا
-            if (parts[1] && dictionary[parts[1]]) {
-                return true;
-            }
-            
-            // د) جرب أشكال أخرى مع apostrophe مختلف
-            // مثل: lorsqu'ils -> l + ils
-            if (parts[0] && parts[1]) {
-                const firstPart = parts[0];
-                const secondPart = parts[1];
-                
-                // حاول مع l في البداية إذا كان الجزء الأول ينتهي بـ l
-                if (firstPart.endsWith('l') || firstPart.endsWith('L')) {
-                    const withL = firstPart.slice(-1) + "'" + secondPart;
-                    if (dictionary[withL]) {
-                        return true;
-                    }
-                }
-            }
-        }
-        
-        // 4. بصيغة المفرد إذا كانت تنتهي بـ s
-        if (normalizedWord.endsWith('s') && !normalizedWord.endsWith("'s")) {
-            const singular = normalizedWord.slice(0, -1);
-            if (dictionary[singular]) {
-                return true;
-            }
-            
-            // جرب أيضًا المفرد بدون apostrophe
-            if (dictionary[singular.replace(/'/g, '')]) {
+        } 
+        // الكلمة بدون 's'
+        if (aggressiveKey.endsWith('s') && aggressiveKey.length > 1) {
+             const singularAggressive = aggressiveKey.slice(0, -1);
+            if (dictionary[singularAggressive]) {
+                if (debug) console.log(`SUCCESS: Found singular match (aggressive - s): ${singularAggressive}`);
                 return true;
             }
         }
-        
-        // 5. بصيغة المفرد إذا كانت تنتهي بـ es
-        if (normalizedWord.endsWith('es') && !normalizedWord.endsWith("'es")) {
-            const singular = normalizedWord.slice(0, -2);
-            if (dictionary[singular]) {
-                return true;
-            }
-            if (dictionary[singular.replace(/'/g, '')]) {
-                return true;
-            }
-        }
-        
-        // 6. للكلمات المركبة
-        if (normalizedWord.includes('-')) {
-            const withoutHyphen = normalizedWord.replace(/-/g, '');
-            if (dictionary[withoutHyphen]) {
-                return true;
-            }
-            
-            // تحقق من أجزاء الكلمة المركبة
-            const parts = normalizedWord.split('-');
-            for (let part of parts) {
-                if (dictionary[part]) {
-                    return true;
-                }
-                if (dictionary[part.replace(/'/g, '')]) {
-                    return true;
-                }
-            }
-        }
-        
+
+        if (debug) console.log(`FAILURE: No translation found for ${word}`);
         return false;
     }
 
-    // دالة للتحقق مما إذا تم حفظ الكلمة
-    function isWordSaved(word) {
-        const normalizedWord = normalizeApostrophe(word.toLowerCase());
-        
-        return savedWords.some(savedWord => {
-            const saved = savedWord.word.toLowerCase();
-            const savedNormalized = normalizeApostrophe(saved);
-            
-            // مقارنات متعددة
-            if (savedNormalized === normalizedWord) return true;
-            
-            // بدون apostrophe
-            if (savedNormalized.replace(/'/g, '') === normalizedWord.replace(/'/g, '')) return true;
-            
-            // معالجة الكلمات المركبة
-            if (savedNormalized === normalizedWord.replace(/-/g, '')) return true;
-            
-            return false;
-        });
-    }
 
-    // نمشي شجرة العقد ونغيّر الـ text nodes فقط
-    function walk(node) {
-        // لا نمر عبر عناصر يجب تجاهلها
-        if (node.nodeType === Node.ELEMENT_NODE && skipTags.has(node.tagName)) return;
-
-        // إذا parent هو span.word (أي تم تغليفه سابقًا) — لا ننفّذ داخلها
-        if (node.parentNode && node.parentNode.nodeType === Node.ELEMENT_NODE) {
-            const p = node.parentNode;
-            if (p.classList && p.classList.contains('word')) return;
-        }
-
-        if (node.nodeType === Node.TEXT_NODE) {
-            // إذا النص يحتوي شيء مفيد
-            const text = node.nodeValue;
-            if (!text || !/\S/.test(text)) return; // لا شيء ملموس
-
-            // ننقسم بحسب كلمة/فاصل
-            const fragments = [];
-            let idx = 0;
-            const regexGlobal = new RegExp(wordPattern.source, 'g');
-
-            let m;
-            let lastIndex = 0;
-            while ((m = regexGlobal.exec(text)) !== null) {
-                const start = m.index;
-                const match = m[0];
-                
-                // إضافة النص قبل المطابقة كما هو
-                if (start > lastIndex) {
-                    fragments.push(document.createTextNode(text.slice(lastIndex, start)));
-                }
-
-                // إنشاء عنصر span للكلمة
-                const span = document.createElement('span');
-                span.className = 'word';
-                
-                // تخزين الكلمة كما هي
-                const displayWord = match;
-                let dataWord = normalizeApostrophe(match.toLowerCase());
-                
-                span.setAttribute('data-word', dataWord);
-                span.textContent = displayWord;
-                
-                // التحقق من وجود ترجمة وإضافة class مناسب
-                if (!hasTranslation(match)) {
-                    span.classList.add('no-translation');
-                    if (debug) {
-                        console.log(`No translation for: "${match}" (normalized: "${dataWord}")`);
-                    }
-                } else {
-                    if (debug) {
-                        console.log(`Found translation for: "${match}" (normalized: "${dataWord}")`);
-                    }
-                }
-                
-                // التحقق إذا تم حفظ الكلمة
-                if (isWordSaved(match)) {
-                    span.classList.add('saved');
-                }
-
-                fragments.push(span);
-                lastIndex = start + match.length;
-            }
-            
-            // باقي النص
-            if (lastIndex < text.length) {
-                fragments.push(document.createTextNode(text.slice(lastIndex)));
-            }
-
-            // إن لم يكن هناك أي مطابقة، نترك النص كما هي
-            if (fragments.length === 0) return;
-
-            // استبدال نص العقدة الحالية بالعناصر الجديدة
-            for (const f of fragments) {
-                node.parentNode.insertBefore(f, node);
-            }
-            node.parentNode.removeChild(node);
+    // دالة المعالجة الرئيسية (تستخدم Pre-order Traversal)
+    function traverseAndWrap(node) {
+        if (skipTags.has(node.nodeName)) {
             return;
         }
 
-        // نمشي أولاد العقدة
-        let child = node.firstChild;
-        while (child) {
-            // cache next sibling لأننا قد نغير DOM
-            const next = child.nextSibling;
-            walk(child);
-            child = next;
+        if (node.nodeType === Node.TEXT_NODE) {
+            const text = node.nodeValue;
+
+            const wrappedText = text.replace(wordPattern, (match) => {
+                
+                // جرد الكلمة المجلوبة من القصة مباشرة
+                const trimmedMatch = match.trim(); 
+                
+                // نستخدم الكلمة المجرّدة (trimmedMatch) في البحث
+                const translationFound = hasTranslation(trimmedMatch);
+                
+                const className = translationFound ? 'word clickable-word' : 'word no-translation';
+                
+                // تخزين المفتاح القياسي للكلمة المجرّدة (يحافظ على الفاصلة الأصلية)
+                const keyToSave = getStandardKey(trimmedMatch);
+                
+                const safeMatch = keyToSave
+                                     .replace(/&/g, '&amp;')
+                                     .replace(/</g, '&lt;')
+                                     .replace(/>/g, '&gt;')
+                                     .replace(/"/g, '&quot;');
+                
+                // نستخدم match الأصلية (غير المجرّدة) في النص للعرض
+                return `<span class="${className}" data-word="${safeMatch}">${match}</span>`;
+            });
+
+            if (wrappedText !== text) {
+                const fragment = document.createDocumentFragment();
+                const tempDiv = document.createElement('div');
+                tempDiv.innerHTML = wrappedText;
+                
+                while (tempDiv.firstChild) {
+                    fragment.appendChild(tempDiv.firstChild);
+                }
+                
+                node.parentNode.replaceChild(fragment, node);
+            }
+        } else {
+            let child = node.firstChild;
+            while (child) {
+                const nextChild = child.nextSibling;
+                traverseAndWrap(child);
+                child = nextChild;
+            }
         }
     }
 
-    walk(container);
-
-    if (debug) {
-        console.log('makeWordsClickable result:', container.innerHTML);
-    }
-
+    traverseAndWrap(container);
     return container.innerHTML;
 }
-function processToken(token) {
-    // فصل علامات الترقيم الطرفية
-    const match = token.match(/^([\w'’\\u0600-\\u06FF\\u0750-\\u077F\\uFB50-\\uFDFF\\uFE70-\\uFEFF-]+)([.,!?;:"]*)$/);
-    
-    if (!match) {
-        return token; // لأرقام أو رموز خاصة
-    }
-    
-    const word = match[1];
-    const punctuation = match[2];
-    
-    // تنظيف الكلمة
-    let cleanWord = word.toLowerCase().replace(/^[.,!?;:"]+|[.,!?;:"]+$/g, '');
-    
-    if (cleanWord.length === 0) {
-        return word + punctuation;
-    }
-    
-    // البحث
-    const isSaved = savedWords.some(w => w.word === cleanWord || 
-                                        w.word === cleanWord.replace(/'/g, ''));
-    const hasTranslation = dictionary[cleanWord] || 
-                          dictionary[cleanWord.replace(/'/g, '')] ||
-                          dictionary[cleanWord.replace(/-/g, '')];
-    
-    let className = 'word';
-    if (isSaved) className += ' saved';
-    if (!hasTranslation) className += ' no-translation';
-    
-    return `<span class="${className}" data-word="${cleanWord}">${word}${punctuation}</span>`;
-}
+// ----------------------------------------------------------------------------------
+
 
 // Setup word click interactions
 function setupWordInteractions() {
     document.querySelectorAll('.word').forEach(word => {
         word.addEventListener('click', (e) => {
             e.stopPropagation();
-            const wordText = word.dataset.word;
-            showDictionary(wordText, word);
+            const dataWord = word.dataset.word; 
+            showDictionary(dataWord, word);
         });
     });
 }
@@ -569,8 +479,6 @@ function setupWordInteractions() {
 // Validate word data
 function validateWordData(wordData) {
     if (!wordData || typeof wordData !== 'object') return false;
-    
-    // التأكد من أن الكلمة تحتوي على البيانات الأساسية
     return wordData.word && wordData.translation;
 }
 
@@ -578,25 +486,21 @@ function validateWordData(wordData) {
 function showDictionary(word, element) {
     if (!word) return;
     
+    // البحث بالمفتاح القياسي (word)
     const wordData = dictionary[word];
 
-    // Set content
-    popupWord.textContent = word;
+    popupWord.textContent = element.innerText; 
 
-    // Hide/Show Listen button based on browser support
     if (listenWordBtn) {
         listenWordBtn.style.display = 'speechSynthesis' in window ? 'inline-block' : 'none';
     }
 
     if (wordData) {
-        // Word has translation
         popupTranslation.textContent = wordData.translation;
-        // Hide other fields as in original (since your JSON only has translation)
         popupPos.style.display = 'none';
         popupDefinition.style.display = 'none';
         popupExample.style.display = 'none';
 
-        // Update save button
         const isSaved = savedWords.some(w => w.word === word);
         saveWordBtn.innerHTML = isSaved
             ? '<i class="fas fa-check"></i> Already Saved'
@@ -605,25 +509,20 @@ function showDictionary(word, element) {
         saveWordBtn.classList.toggle('disabled', isSaved);
         saveWordBtn.classList.remove('no-translation-btn');
     } else {
-        // Word has no translation
         popupTranslation.textContent = "لا توجد ترجمة متاحة";
-        // Hide other fields as in original
         popupPos.style.display = 'none';
         popupDefinition.style.display = 'none';
         popupExample.style.display = 'none';
 
-        // Update save button for no translation
         saveWordBtn.innerHTML = '<i class="fas fa-bookmark"></i> Save Word (No Translation)';
         saveWordBtn.disabled = false;
         saveWordBtn.classList.add('no-translation-btn');
     }
 
-    // Validate current word data
     if (!validateWordData({ word: word, translation: wordData?.translation || "No translation" })) {
         console.warn('Invalid word data for:', word);
     }
 
-    // Store current word for saving and listening
     currentWordData = {
         word: word,
         element: element,
@@ -631,7 +530,6 @@ function showDictionary(word, element) {
         wordData: wordData
     };
 
-    // Position the popup near the clicked word
     const rect = element.getBoundingClientRect();
     dictionaryPopup.style.top = `${rect.bottom + window.scrollY + 10}px`;
     dictionaryPopup.style.left = `${Math.max(10, rect.left + window.scrollX - 150)}px`;
@@ -654,13 +552,11 @@ document.addEventListener('click', (e) => {
 // 📖 وظائف المفردات والإحصائيات
 // ----------------------------------------------------
 
-// Show notification
 function showNotification(message, type = 'success') {
     const notification = document.createElement('div');
     notification.className = `notification ${type}`;
     notification.textContent = message;
     
-    // ألوان مختلفة لأنواع مختلفة من الإشعارات
     const colors = {
         success: 'rgb(13, 167, 116)',
         warning: '#f59e0b',
@@ -686,7 +582,6 @@ function showNotification(message, type = 'success') {
 
     document.body.appendChild(notification);
 
-    // Remove after 3 seconds
     setTimeout(() => {
         notification.style.animation = 'slideOut 0.3s ease';
         setTimeout(() => {
@@ -697,7 +592,6 @@ function showNotification(message, type = 'success') {
     }, 3000);
 }
 
-// Save current word to vocabulary
 function saveCurrentWord() {
     if (!currentWordData) {
         showNotification('No word selected', 'error');
@@ -706,34 +600,29 @@ function saveCurrentWord() {
 
     const { word, element, hasTranslation, wordData } = currentWordData;
 
-    // Check if word is already saved
     if (savedWords.some(w => w.word === word)) {
         showNotification('Word already saved!', 'info');
         return;
     }
 
-    // Get current story title
     const storyTitle = currentStory ? currentStory.title : 'Unknown Story';
 
-    // Create new word entry
     const newWord = {
-        word: word,
+        word: word, 
+        originalWord: element.innerText, 
         status: 'saved',
         added: new Date().toISOString(),
-        nextReview: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // Tomorrow
+        nextReview: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), 
         story: storyTitle,
         hasTranslation: hasTranslation
     };
 
-    // Add translation data if available
     if (hasTranslation && wordData) {
         newWord.translation = wordData.translation;
-        // Since your JSON only has translation, add placeholder for other fields
         newWord.definition = "Check back later for definition";
         newWord.example = "Check back later for example";
         newWord.pos = "unknown";
     } else {
-        // For words without translations
         newWord.translation = "No translation available";
         newWord.definition = "This word is not yet in our dictionary";
         newWord.example = "We're working on adding more words to our database";
@@ -745,39 +634,30 @@ function saveCurrentWord() {
 
     hideDictionary();
 
-    // Update word appearance in the story
     if (element) {
         element.classList.add('saved');
         element.classList.remove('no-translation');
     }
 
-    // Update vocabulary if on vocabulary page
     if (document.querySelector('.nav-tab.active[data-page="vocabulary"]')) {
         renderVocabulary();
         updateVocabularyStats();
     }
 
-    // Show confirmation message
     const message = hasTranslation
-        ? `"${word}" saved to vocabulary from "${storyTitle}"!`
-        : `"${word}" saved to vocabulary from "${storyTitle}" (translation will be added later)`;
+        ? `"${element.innerText}" saved to vocabulary from "${storyTitle}"!`
+        : `"${element.innerText}" saved to vocabulary from "${storyTitle}" (translation will be added later)`;
 
     showNotification(message, hasTranslation ? 'success' : 'warning');
 }
 
-// Function to translate on Google
 function translateOnGoogle() {
-    if (!currentWordData || !currentWordData.word) return;
-
-    const wordToTranslate = currentWordData.word;
-
-    // رابط Google Translate: en→ar (يمكن تعديل اللغات حسب الحاجة)
+    if (!currentWordData || !currentWordData.element) return;
+    const wordToTranslate = currentWordData.element.innerText.trim();
     const translateUrl = `https://translate.google.com/?sl=auto&tl=ar&text=${encodeURIComponent(wordToTranslate)}&op=translate`;
-
     window.open(translateUrl, '_blank');
 }
 
-// Update vocabulary stats
 function updateVocabularyStats() {
     const totalWords = document.getElementById('totalWords');
     const masteredWords = document.getElementById('masteredWords');
@@ -787,18 +667,15 @@ function updateVocabularyStats() {
     if (totalWords) totalWords.textContent = savedWords.length;
     if (masteredWords) masteredWords.textContent = savedWords.filter(w => w.status === 'mastered' || w.status === 'known').length;
 
-    // Calculate due for practice (words added in last 3 days)
     const threeDaysAgo = new Date();
     threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
     const dueCount = savedWords.filter(w => new Date(w.added || w.date) > threeDaysAgo).length;
     if (practiceDue) practiceDue.textContent = dueCount;
 
-    // Simple streak calculation
     const streak = Math.min(30, savedWords.length);
     if (readingStreak) readingStreak.textContent = streak;
 }
 
-// Render vocabulary list
 function renderVocabulary() {
     if (!vocabularyList) return;
 
@@ -816,6 +693,8 @@ function renderVocabulary() {
     savedWords.forEach((word, index) => {
         const item = document.createElement('div');
         item.className = 'vocabulary-item';
+        
+        const displayWord = word.originalWord || word.word; 
 
         const translationBadge = !word.hasTranslation
             ? `<span class="no-translation-badge" style="background: #f59e0b; color: white; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; margin-left: 8px;">No Translation</span>`
@@ -828,7 +707,7 @@ function renderVocabulary() {
         item.innerHTML = `
             <div class="word-info">
                 <div class="word-main">
-                    <span class="word-text">${word.word}</span>
+                    <span class="word-text">${displayWord}</span>
                     <span class="word-translation">${word.translation}</span>
                     ${translationBadge}
                     ${masteredBadge}
@@ -851,7 +730,6 @@ function renderVocabulary() {
         vocabularyList.appendChild(item);
     });
 
-    // Add event listeners for vocabulary actions
     document.querySelectorAll('.word-actions button').forEach(button => {
         button.addEventListener('click', (e) => {
             const index = parseInt(e.currentTarget.dataset.index);
@@ -864,7 +742,6 @@ function renderVocabulary() {
     });
 }
 
-// Mark word as mastered
 function markAsMastered(index) {
     if (index < 0 || index >= savedWords.length) return;
     
@@ -873,15 +750,14 @@ function markAsMastered(index) {
     localStorage.setItem('savedWordsfr', JSON.stringify(savedWords));
     
     updateVocabularyStats();
-    showNotification(`"${savedWords[index].word}" marked as mastered!`, 'success');
+    showNotification(`"${savedWords[index].originalWord || savedWords[index].word}" marked as mastered!`, 'success');
     renderVocabulary();
 }
 
-// Delete word from vocabulary
 function deleteWord(index) {
     if (index < 0 || index >= savedWords.length) return;
     
-    const word = savedWords[index].word;
+    const word = savedWords[index].originalWord || savedWords[index].word;
     const confirmed = window.confirm(`Are you sure you want to delete "${word}" from your vocabulary?`);
     
     if (confirmed) {
@@ -893,7 +769,103 @@ function deleteWord(index) {
     }
 }
 
-// Delete all words
+
+
+// copy button
+const copyBtn = document.getElementById("copy");
+if (copyBtn) {
+  copyBtn.addEventListener("click", copyStoryFast);
+}
+
+function copyStoryFast() {
+  try {
+    // 1) نحاول جمع النص المعروض فعلاً داخل العنصر storyText
+    // هذا يأخذ فقط النص المرئي (بدون الوسوم HTML)
+    let text = "";
+
+    if (storyText) {
+      // أفضل: نأخذ كل فقرة مرئية (.paragraph) إن وُجدت لأنها تحافظ على الفقرات
+      const paras = storyText.querySelectorAll ? storyText.querySelectorAll('.paragraph') : null;
+
+      if (paras && paras.length) {
+        text = Array.from(paras).map(p => p.innerText.trim()).filter(Boolean).join('\n\n');
+      } else {
+        // fallback: نستخدم innerText الكامل من storyText
+        text = (storyText.innerText || storyText.textContent || "").trim();
+      }
+    }
+
+    // 2) إذا النص فارغ، ننبّه المستخدم
+    if (!text) {
+      showNotification('No story to copy', 'error');
+      return;
+    }
+
+    // 3) نسخ باستخدام navigator.clipboard (أفضل)، مع fallback للمتصفحات القديمة
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(text).then(() => {
+        flashCopyUI();
+        showNotification('Story copied!', 'success');
+      }).catch(err => {
+        // إذا فشل، نجرّب fallback
+        fallbackCopyText(text);
+      });
+    } else {
+      fallbackCopyText(text);
+    }
+
+  } catch (err) {
+    console.error('copyStoryFast error:', err);
+    showNotification('Copy failed', 'error');
+  }
+}
+
+function fallbackCopyText(text) {
+  try {
+    const textarea = document.createElement('textarea');
+    textarea.value = text;
+    // ensure offscreen and not focusable
+    textarea.style.position = 'fixed';
+    textarea.style.left = '-9999px';
+    textarea.style.top = '0';
+    textarea.setAttribute('aria-hidden', 'true');
+    document.body.appendChild(textarea);
+    textarea.focus();
+    textarea.select();
+
+    const ok = document.execCommand('copy');
+    document.body.removeChild(textarea);
+
+    if (ok) {
+      flashCopyUI();
+      showNotification('Story copied!', 'success');
+    } else {
+      throw new Error('execCommand returned false');
+    }
+  } catch (e) {
+    console.error('fallbackCopyText failed', e);
+    showNotification('Copy failed', 'error');
+  }
+}
+
+// تلميح بصري للزر بعد النسخ
+function flashCopyUI() {
+  const btn = document.getElementById('copy');
+  if (!btn) return;
+  const originalHTML = btn.innerHTML;
+  const originalTitle = btn.title;
+  btn.innerHTML = '<i class="fas fa-check"></i>';
+  btn.title = 'Copied!';
+  btn.style.color = 'rgb(13, 167, 116)';
+  setTimeout(() => {
+    btn.innerHTML = originalHTML;
+    btn.title = originalTitle;
+    btn.style.color = '';
+  }, 1400);
+}
+
+
+
 function removeAll() {
     if (savedWords.length === 0) {
         showNotification('No words to remove!', 'info');
@@ -902,39 +874,32 @@ function removeAll() {
     
     const confirmed = window.confirm(`Are you sure you want to remove all ${savedWords.length} saved words? This action cannot be undone.`);
 
-    if (!confirmed) return; // user canceled
+    if (!confirmed) return; 
 
-    // Clear localStorage
     localStorage.setItem('savedWordsfr', JSON.stringify([]));
-
-    // Clear in-memory array
     savedWords = [];
 
-    // Show notification
     showNotification(`All saved words removed successfully!`, 'success');
 
-    // Update UI
     renderVocabulary();
     updateVocabularyStats();
 }
 
-// Export vocabulary as CSV file
 function exportVocabulary() {
     if (savedWords.length === 0) {
         showNotification('No vocabulary to export!');
         return;
     }
 
-    // Create CSV content with headers
-    const headers = ['Word', 'Translation', 'Status', 'Story', 'Date Added'];
+    const headers = ['Word', 'Original Word (if different)', 'Translation', 'Status', 'Story', 'Date Added'];
 
-    // Create CSV rows
     const csvRows = [
-        headers.join(','), // Add headers first
+        headers.join(','), 
         ...savedWords.map(word => {
             return [
                 `"${word.word || ''}"`,
-                `"${(word.translation || '').replace(/"/g, '""')}"`, // Escape quotes in CSV
+                `"${(word.originalWord || '').replace(/"/g, '""')}"`,
+                `"${(word.translation || '').replace(/"/g, '""')}"`, 
                 `"${word.status || ''}"`,
                 `"${(word.story || '').replace(/"/g, '""')}"`,
                 `"${word.added ? new Date(word.added).toLocaleDateString('en-US') : ''}"`
@@ -942,34 +907,23 @@ function exportVocabulary() {
         })
     ];
 
-    // Join rows with newlines
     const csvString = csvRows.join('\n');
-
-    // Create a Blob (file-like object)
     const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
-
-    // Create download URL
     const url = URL.createObjectURL(blob);
-
-    // Create invisible download link
     const link = document.createElement('a');
     link.setAttribute('href', url);
 
-    // Create filename with current date
     const date = new Date();
     const formattedDate = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}-${date.getDate().toString().padStart(2, '0')}`;
     link.setAttribute('download', `my_vocabulary_${formattedDate}.csv`);
 
-    // Hide the link and trigger download
     link.style.visibility = 'hidden';
     document.body.appendChild(link);
     link.click();
 
-    // Clean up
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
 
-    // Show success message
     showNotification(`Vocabulary exported successfully! (${savedWords.length} words)`);
 }
 
@@ -977,14 +931,12 @@ function exportVocabulary() {
 // 🎨 وظائف التخصيص
 // ----------------------------------------------------
 
-// Toggle theme
 function toggleTheme() {
     theme = theme === 'light' ? 'dark' : 'light';
     applyTheme();
     localStorage.setItem('theme', theme);
 }
 
-// Apply theme
 function applyTheme() {
     if (theme === 'dark') {
         document.body.classList.add('dark-mode');
@@ -995,19 +947,16 @@ function applyTheme() {
     }
 }
 
-// Adjust font size
 function adjustFontSize(change) {
     fontSize += change;
     fontSize = Math.max(1, Math.min(2, fontSize));
     storyText.style.fontSize = `${fontSize}rem`;
 
-    // Update active button
     fontSmaller.classList.toggle('active', fontSize < 1.2);
     fontNormal.classList.toggle('active', fontSize === 1.2);
     fontLarger.classList.toggle('active', fontSize > 1.2);
 }
 
-// Reset font size
 function resetFontSize() {
     fontSize = 1.2;
     storyText.style.fontSize = `${fontSize}rem`;
@@ -1017,7 +966,6 @@ function resetFontSize() {
     fontLarger.classList.remove('active');
 }
 
-// Toggle line spacing
 function toggleLineSpacing() {
     lineHeight = lineHeight === 1.8 ? 2.2 : 1.8;
     storyText.style.lineHeight = lineHeight;
@@ -1028,7 +976,6 @@ function toggleLineSpacing() {
 // 🔊 وظائف الصوت
 // ----------------------------------------------------
 
-// Toggle audio (text-to-speech for whole story)
 function toggleAudio() {
     if (!currentStory) return;
 
@@ -1041,7 +988,6 @@ function toggleAudio() {
     }
 }
 
-// Start text-to-speech for the whole story
 function startAudio() {
     if ('speechSynthesis' in window && currentStory) {
         const utterance = new SpeechSynthesisUtterance();
@@ -1068,7 +1014,6 @@ function startAudio() {
     }
 }
 
-// Stop text-to-speech
 function stopAudio() {
     if ('speechSynthesis' in window) {
         speechSynthesis.cancel();
@@ -1076,16 +1021,14 @@ function stopAudio() {
     }
 }
 
-// Function to listen to the currently selected word
 function listenToWord() {
-    if (!currentWordData || !currentWordData.word) return;
+    if (!currentWordData || !currentWordData.element) return;
     
-    // Stop any current reading (story or other word)
     if ('speechSynthesis' in window) {
         speechSynthesis.cancel();
     }
     
-    const wordToSpeak = currentWordData.word;
+    const wordToSpeak = currentWordData.element.innerText.trim();
     const utterance = new SpeechSynthesisUtterance(wordToSpeak);
     
     utterance.rate = 0.8; 
@@ -1097,19 +1040,13 @@ function listenToWord() {
 // 🌐 وظائف البحث
 // ----------------------------------------------------
 
-// Function to open Google Search for the current word
 function searchOnGoogle() {
-    if (!currentWordData || !currentWordData.word) return;
+    if (!currentWordData || !currentWordData.element) return;
 
-    const wordToSearch = currentWordData.word;
-    
-    // Construct the Google search URL
+    const wordToSearch = currentWordData.element.innerText.trim();
     const googleSearchUrl = `https://www.google.com/search?q=${encodeURIComponent(wordToSearch)}+meaning`;
     
-    // Open the URL in a new tab/window
     window.open(googleSearchUrl, '_blank');
-    
-    // Hide the dictionary popup after searching
     hideDictionary();
 }
 
@@ -1117,7 +1054,6 @@ function searchOnGoogle() {
 // 📊 وظائف التقدم
 // ----------------------------------------------------
 
-// Update reading progress
 function updateReadingProgress() {
     window.addEventListener('scroll', () => {
         const winScroll = document.body.scrollTop || document.documentElement.scrollTop;
@@ -1133,7 +1069,6 @@ function updateReadingProgress() {
 // 🔄 وظائف التنقل
 // ----------------------------------------------------
 
-// Switch page
 function switchPage(page) {
     pages.forEach(p => p.classList.remove('active'));
     const pageElement = document.getElementById(page + 'Page');
@@ -1152,17 +1087,14 @@ function switchPage(page) {
 // 🛠️ وظائف التنظيف والإدارة
 // ----------------------------------------------------
 
-// Cleanup function
 function cleanup() {
     window.removeEventListener('scroll', saveReadingPosition);
     window.removeEventListener('beforeunload', saveReadingPosition);
     
-    // إلغاء أي كلام قيد التشغيل
     if ('speechSynthesis' in window) {
         speechSynthesis.cancel();
     }
     
-    // تنظيف أي event listeners إضافية إذا لزم الأمر
     document.removeEventListener('click', hideDictionary);
 }
 
@@ -1170,7 +1102,6 @@ function cleanup() {
 // 🎯 إعداد Event Listeners
 // ----------------------------------------------------
 
-// Setup event listeners
 function setupEventListeners() {
     if (themeToggle) themeToggle.addEventListener('click', toggleTheme);
     if (fontSmaller) fontSmaller.addEventListener('click', () => adjustFontSize(-0.1));
@@ -1184,49 +1115,35 @@ function setupEventListeners() {
     if (backToHome) backToHome.addEventListener('click', () => window.location.href = '../index.html');
     if (exportVocabularyBtn) exportVocabularyBtn.addEventListener('click', exportVocabulary);
     
-    // Link Google Search button
     if (googleSearchBtn) googleSearchBtn.addEventListener('click', searchOnGoogle); 
-    
-    // Link Listen Word button
     if (listenWordBtn) listenWordBtn.addEventListener('click', listenToWord);
-    
-    // Link Remove All button
     if (removebtn) removebtn.addEventListener("click", removeAll);
-    
-    // Link Google Translate button
     if (googleTranslateBtn) googleTranslateBtn.addEventListener('click', translateOnGoogle);
 
-    // Navigation tabs
     navTabs.forEach(tab => {
         tab.addEventListener('click', () => {
             switchPage(tab.dataset.page);
         });
     });
 
-    // Close dictionary with Escape key
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {
             hideDictionary();
-            // Stop any speech when closing the popup
             if ('speechSynthesis' in window) {
                 speechSynthesis.cancel();
             }
         }
     });
 
-    // 🧭 حفظ موقع القراءة عند التمرير
     window.addEventListener('scroll', saveReadingPosition);
-    // 🧭 حفظ موقع القراءة عند مغادرة الصفحة
     window.addEventListener('beforeunload', saveReadingPosition);
 
-    // Stop audio when leaving page
     window.addEventListener('beforeunload', () => {
         if (isAudioPlaying && 'speechSynthesis' in window) {
             speechSynthesis.cancel();
         }
     });
     
-    // تنظيف عند الخروج
     window.addEventListener('beforeunload', cleanup);
 }
 
@@ -1234,7 +1151,6 @@ function setupEventListeners() {
 // 🎨 إضافة CSS animations
 // ----------------------------------------------------
 
-// Add CSS animations
 const style = document.createElement('style');
 style.textContent = `
     @keyframes slideIn {
@@ -1276,7 +1192,6 @@ document.head.appendChild(style);
 // 🚀 دالة التهيئة (Initialization)
 // ----------------------------------------------------
 
-// Initialize
 async function init() {
     applyTheme();
     setupEventListeners();
@@ -1284,9 +1199,7 @@ async function init() {
     updateVocabularyStats();
     renderVocabulary();
     
-    // 🧭 استعادة موقع القراءة بعد تحميل القصة وعرضها
     restoreReadingPosition(); 
 }
 
-// Start the app
 document.addEventListener('DOMContentLoaded', init);

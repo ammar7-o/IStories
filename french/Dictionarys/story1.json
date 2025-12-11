@@ -153,6 +153,7 @@
   "une": { "translation": "واحدة / أحدى" },
   "dans": { "translation": "في" },
   "le": { "translation": "الـ (أداة تعريف مذكر)" },
-  "appris": { "translation": "تعلَّمَ / عَرَفَ" }
+  "appris": { "translation": "تعلَّمَ / عَرَفَ" },
+    "débutants": { "translation": "مبتدئون" }
   
 }
