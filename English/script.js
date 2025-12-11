@@ -180,7 +180,7 @@ function switchPage(page) {
             link.classList.remove('active');
         }
     });
-    
+
     // Refresh flashcards when switching to flashcards page
     if (page === 'flashcards') {
         loadFlashcards();
@@ -603,7 +603,6 @@ function renderVocabulary() {
         vocabularyList.appendChild(item);
     });
 
-    // Add event listeners for vocabulary actions
     document.querySelectorAll('.word-actions button').forEach(button => {
         button.addEventListener('click', (e) => {
             const index = parseInt(e.currentTarget.dataset.index);
@@ -615,16 +614,34 @@ function renderVocabulary() {
         });
     });
 }
+function updateVocabularyStats() {
+    const totalWords = document.getElementById('totalWords');
+    const masteredWords = document.getElementById('masteredWords');
+    const practiceDue = document.getElementById('practiceDue');
+    const readingStreak = document.getElementById('readingStreak');
 
-// Mark word as known
-function markAsKnown(index) {
-    savedWords[index].status = 'known';
-    savedWords[index].mastered = new Date().toISOString();
+    if (totalWords) totalWords.textContent = savedWords.length;
+    if (masteredWords) masteredWords.textContent = savedWords.filter(w => w.status === 'mastered' || w.status === 'known').length;
+
+    const threeDaysAgo = new Date();
+    threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
+    const dueCount = savedWords.filter(w => new Date(w.added || w.date) > threeDaysAgo).length;
+    if (practiceDue) practiceDue.textContent = dueCount;
+
+    const streak = Math.min(30, savedWords.length);
+    if (readingStreak) readingStreak.textContent = streak;
+}
+
+function markAsMastered(index) {
+    if (index < 0 || index >= savedWords.length) return;
+
+    savedWords[index].status = 'mastered';
+    savedWords[index].masteredDate = new Date().toISOString();
     localStorage.setItem('savedWords', JSON.stringify(savedWords));
-    showNotification('Word marked as mastered!');
+
+    updateVocabularyStats();
+    showNotification(`"${savedWords[index].originalWord || savedWords[index].word}" marked as mastered!`, 'success');
     renderVocabulary();
-    updateStats();
-    updateFlashcardStats(); // Also update flashcard stats
 }
 
 // Delete word from vocabulary
@@ -792,16 +809,16 @@ function loadFlashcards() {
     currentCards = savedWords.filter(word => {
         // If no nextReview date, it's due
         if (!word.nextReview) return true;
-        
+
         // Check if review is due
         return new Date(word.nextReview) <= new Date();
     });
-    
+
     // Initialize session
     sessionCards = [...currentCards];
     currentCardIndex = 0;
     cardsReviewed = 0;
-    
+
     if (sessionCards.length > 0) {
         loadCard(0);
         enableCardButtons(true);
@@ -809,7 +826,7 @@ function loadFlashcards() {
         showNoCardsMessage();
         enableCardButtons(false);
     }
-    
+
     updateProgress();
     updateFlashcardStats();
 }
@@ -820,9 +837,9 @@ function loadCard(index) {
         showSessionComplete();
         return;
     }
-    
+
     const card = sessionCards[index];
-    
+
     // تنسيق التواريخ
     const formatDate = (dateString, short = false) => {
         if (!dateString) return 'Not set';
@@ -839,14 +856,14 @@ function loadCard(index) {
             year: 'numeric'
         });
     };
-    
+
     const addedDate = formatDate(card.added);
-   
-    
+
+
     // Front side (word) مع التاريخ
     flashcardWord.textContent = card.word;
     flashcardTranslation.textContent = card.translation || "No translation available";
-    
+
     // Back side details مع التواريخ
     flashcardStory.innerHTML = `
         <div class="card-dates">
@@ -872,10 +889,10 @@ function loadCard(index) {
             </div>
         </div>
     `;
-    
+
     // Reset card to front side
     flashcard.classList.remove('flipped');
-    
+
     // إضافة event listener لزر التعديل
     setTimeout(() => {
         const editBtn = flashcardStory.querySelector('.edit-dates');
@@ -887,7 +904,7 @@ function loadCard(index) {
             });
         }
     }, 100);
-    
+
     // Update progress
     updateProgress();
 }
@@ -905,7 +922,7 @@ function showNoCardsMessage() {
     flashcardWord.textContent = "No cards available";
     flashcardTranslation.textContent = "Add words from stories to practice";
     flashcardStory.textContent = "Read stories and save words to practice them here";
-    
+
     progressText.textContent = "0/0";
     progressFill.style.width = "0%";
 }
@@ -915,10 +932,10 @@ function showSessionComplete() {
     flashcardWord.textContent = "Session Complete! 🎉";
     flashcardTranslation.textContent = "Great job!";
     flashcardStory.textContent = `You reviewed ${cardsReviewed} cards`;
-    
+
     progressText.textContent = `${cardsReviewed}/${cardsReviewed}`;
     progressFill.style.width = "100%";
-    
+
     enableCardButtons(false);
 }
 
@@ -926,9 +943,9 @@ function showSessionComplete() {
 function updateProgress() {
     const total = sessionCards.length;
     const reviewed = cardsReviewed;
-    
+
     progressText.textContent = `${reviewed}/${total}`;
-    
+
     if (total > 0) {
         const percentage = (reviewed / total) * 100;
         progressFill.style.width = `${percentage}%`;
@@ -944,10 +961,10 @@ function updateFlashcardStats() {
         if (!word.nextReview) return true;
         return new Date(word.nextReview) <= new Date();
     }).length;
-    
+
     const mastered = savedWords.filter(word => word.status === 'known').length;
     const learning = savedWords.filter(word => word.status === 'saved').length;
-    
+
     dueCards.textContent = due;
     totalCards.textContent = total;
     masteredCards.textContent = mastered;
@@ -964,13 +981,13 @@ function setupFlashcardListeners() {
             }
         });
     }
-    
+
     // Card review buttons
     if (cardAgain) cardAgain.addEventListener('click', () => reviewCard(1)); // Again (1 day)
     if (cardHard) cardHard.addEventListener('click', () => reviewCard(3)); // Hard (3 days)
     if (cardGood) cardGood.addEventListener('click', () => reviewCard(7)); // Good (7 days)
     if (cardEasy) cardEasy.addEventListener('click', () => reviewCard(14)); // Easy (14 days)
-    
+
     // Control buttons
     if (shuffleCards) shuffleCards.addEventListener('click', shuffleFlashcards);
     if (resetProgress) resetProgress.addEventListener('click', resetCardProgress);
@@ -979,18 +996,18 @@ function setupFlashcardListeners() {
 // Review a card with spaced repetition
 function reviewCard(daysToAdd) {
     if (currentCardIndex >= sessionCards.length) return;
-    
+
     const card = sessionCards[currentCardIndex];
-    
+
     // Update card in savedWords
     const wordIndex = savedWords.findIndex(w => w.word === card.word);
     if (wordIndex !== -1) {
         // Calculate next review date
         const nextReviewDate = new Date();
         nextReviewDate.setDate(nextReviewDate.getDate() + daysToAdd);
-        
+
         savedWords[wordIndex].nextReview = nextReviewDate.toISOString();
-        
+
         // If marked "Again", reset to learning
         if (daysToAdd === 1) {
             savedWords[wordIndex].status = 'saved';
@@ -1000,21 +1017,21 @@ function reviewCard(daysToAdd) {
             savedWords[wordIndex].status = 'known';
             savedWords[wordIndex].mastered = new Date().toISOString();
         }
-        
+
         // Save to localStorage
         localStorage.setItem('savedWords', JSON.stringify(savedWords));
     }
-    
+
     // Move to next card
     cardsReviewed++;
     currentCardIndex++;
-    
+
     if (currentCardIndex < sessionCards.length) {
         loadCard(currentCardIndex);
     } else {
         showSessionComplete();
     }
-    
+
     // Update stats
     updateFlashcardStats();
     updateStats(); // Update main stats too
@@ -1036,11 +1053,11 @@ function shuffleFlashcards() {
             const j = Math.floor(Math.random() * (i + 1));
             [sessionCards[i], sessionCards[j]] = [sessionCards[j], sessionCards[i]];
         }
-        
+
         currentCardIndex = 0;
         cardsReviewed = 0;
         loadCard(currentCardIndex);
-        
+
         showNotification('Cards shuffled!');
     }
 }
@@ -1048,20 +1065,20 @@ function shuffleFlashcards() {
 // Reset all card progress
 function resetCardProgress() {
     const confirmed = confirm("Reset all card progress? This will set all words back to 'due' status.");
-    
+
     if (confirmed) {
         savedWords.forEach(word => {
             word.nextReview = new Date().toISOString();
             word.status = 'saved';
             delete word.mastered;
         });
-        
+
         localStorage.setItem('savedWords', JSON.stringify(savedWords));
-        
+
         loadFlashcards();
         updateFlashcardStats();
         updateStats();
-        
+
         showNotification('Card progress reset!');
     }
 }

@@ -615,16 +615,34 @@ function renderVocabulary() {
         });
     });
 }
+function updateVocabularyStats() {
+    const totalWords = document.getElementById('totalWords');
+    const masteredWords = document.getElementById('masteredWords');
+    const practiceDue = document.getElementById('practiceDue');
+    const readingStreak = document.getElementById('readingStreak');
 
-// Mark word as known
-function markAsKnown(index) {
-    savedWords[index].status = 'known';
-    savedWords[index].mastered = new Date().toISOString();
-    localStorage.setItem('savedWordsfr', JSON.stringify(savedWords));
-    showNotification('Word marked as mastered!');
+    if (totalWords) totalWords.textContent = savedWords.length;
+    if (masteredWords) masteredWords.textContent = savedWords.filter(w => w.status === 'mastered' || w.status === 'known').length;
+
+    const threeDaysAgo = new Date();
+    threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
+    const dueCount = savedWords.filter(w => new Date(w.added || w.date) > threeDaysAgo).length;
+    if (practiceDue) practiceDue.textContent = dueCount;
+
+    const streak = Math.min(30, savedWords.length);
+    if (readingStreak) readingStreak.textContent = streak;
+}
+
+function markAsMastered(index) {
+    if (index < 0 || index >= savedWords.length) return;
+    
+    savedWords[index].status = 'mastered';
+    savedWords[index].masteredDate = new Date().toISOString();
+    localStorage.setItem('savedWords', JSON.stringify(savedWords));
+    
+    updateVocabularyStats();
+    showNotification(`"${savedWords[index].originalWord || savedWords[index].word}" marked as mastered!`, 'success');
     renderVocabulary();
-    updateStats();
-    updateFlashcardStats(); // Also update flashcard stats
 }
 
 // Delete word from vocabulary

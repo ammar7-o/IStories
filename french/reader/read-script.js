@@ -468,14 +468,20 @@ function makeWordsClickable(htmlString, options = {}) {
 // Setup word click interactions
 function setupWordInteractions() {
     document.querySelectorAll('.word').forEach(word => {
+        const dataWord = word.dataset.word;
+        
+        // Check if this word is already saved and apply the saved class
+        if (savedWords.some(w => w.word === dataWord)) {
+            word.classList.add('saved');
+            word.classList.remove('no-translation');
+        }
+        
         word.addEventListener('click', (e) => {
             e.stopPropagation();
-            const dataWord = word.dataset.word; 
             showDictionary(dataWord, word);
         });
     });
 }
-
 // Validate word data
 function validateWordData(wordData) {
     if (!wordData || typeof wordData !== 'object') return false;
@@ -758,15 +764,13 @@ function deleteWord(index) {
     if (index < 0 || index >= savedWords.length) return;
     
     const word = savedWords[index].originalWord || savedWords[index].word;
-    const confirmed = window.confirm(`Are you sure you want to delete "${word}" from your vocabulary?`);
     
-    if (confirmed) {
-        savedWords.splice(index, 1);
-        localStorage.setItem('savedWordsfr', JSON.stringify(savedWords));
-        updateVocabularyStats();
-        renderVocabulary();
-        showNotification(`"${word}" removed from vocabulary`, 'info');
-    }
+    // Remove the word immediately without confirmation
+    savedWords.splice(index, 1);
+    localStorage.setItem('savedWordsfr', JSON.stringify(savedWords));
+    updateVocabularyStats();
+    renderVocabulary();
+    showNotification(`"${word}" removed from vocabulary`);
 }
 
 

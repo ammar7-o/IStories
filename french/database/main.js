@@ -78,7 +78,8 @@ window.storiesData = {
             "id": 4,
             "title": "Le Petit Jardin",
             "level": "beginner",
-            "cover": "../imges/garden.jpg" ,         "coverType": "image",
+            "cover": "../../imges/garden.jpg",
+            "coverType": "image",
             "sound": "",
             "dictionaries": ["../Dictionarys/main.json", "../Dictionarys/story4.json"],
             "content": [
